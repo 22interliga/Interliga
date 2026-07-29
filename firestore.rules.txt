@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin: qualquer usuário autenticado que tenha um documento em /admins/{uid}
+    // OU que tenha email nos emails fixos
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'admin@interliga.com.br' ||
+        request.auth.token.email == 'miqueias@interliga.com.br' ||
+        request.auth.token.email == 'interliga2026a@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+    function souFranqueado() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/franqueados/$(request.auth.uid));
+    }
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+    // Admins collection - para adicionar novos admins sem mudar regras
+    match /admins/{uid} {
+      allow read, write: if isAdmin();
+    }
+
+    // CORRIDAS — leitura restrita a: quem participa da corrida (passageiro ou
+    // motorista), OU corridas ainda "aguardando" (fila que motoristas
+    // disponíveis precisam ver para aceitar), OU admin/franqueado.
+    // Antes: allow read: if estaAutenticado() — qualquer usuário logado lia
+    // TODAS as corridas do sistema inteiro, de qualquer passageiro/motorista.
+    match /corridas/{corridaId} {
+      allow read: if estaAutenticado() && (
+        resource.data.status == 'aguardando' ||
+        request.auth.uid == resource.data.passageiroId ||
+        request.auth.uid == resource.data.motoristaId ||
+        isAdmin() || souFranqueado()
+      );
+      allow write: if estaAutenticado();
+      match /mensagens/{mensagemId} {
+        allow read, write: if estaAutenticado();
+      }
+    }
+
+    match /motoristas/{motoristaId} {
+      // Mantido como está: leitura ampla é necessária hoje por causa das
+      // buscas por codigoIndicacao e cpf (ver appjs linhas 580 e 1617).
+      // PENDENTE: separar dados públicos (nome, foto, nota) de dados
+      // privados (cpf, docs, endereço) em subcoleções para restringir isso.
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado();
+      allow update: if estaAutenticado() && (
+        request.auth.uid == motoristaId || isAdmin() || souFranqueado()
+      );
+      allow delete: if isAdmin();
+    }
+    match /passageiros/{uid} {
+      // Mesma pendência de redesenho que motoristas acima.
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado();
+      allow update: if estaAutenticado() && (
+        request.auth.uid == uid || isAdmin() || souFranqueado()
+      );
+    }
+    match /motoristas_disponiveis/{motoristaId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /zonas_risco/{zonaId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /regras_horario/{regraId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /precos/{cidadeId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /repasses_pagos/{motoristaId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /config/{configId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin();
+    }
+    match /franqueados/{uid} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin();
+    }
+    match /estabelecimentos/{estabId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /avaliacoes/{avaliacaoId} {
+      allow read, write: if estaAutenticado();
+    }
+
+    // CARTEIRA_TRANSACOES — leitura restrita ao dono da transação (campo
+    // 'uid', confirmado em appjs e motorista.js) ou admin.
+    // Antes: allow read: if estaAutenticado() — qualquer usuário logado lia
+    // as transações de carteira de TODOS os usuários.
+    match /carteira_transacoes/{transacaoId} {
+      allow read: if estaAutenticado() && (
+        request.auth.uid == resource.data.uid || isAdmin()
+      );
+      allow create: if estaAutenticado();
+    }
+
+    match /anuncios/{anuncioId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /restaurantes_food/{restId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+      match /cardapio/{itemId} {
+        allow read: if estaAutenticado();
+        allow write: if isAdmin() || souFranqueado();
+      }
+    }
+    match /pedidos_food/{pedidoId} {
+      allow read, create: if estaAutenticado();
+      allow update: if estaAutenticado();
+    }
+    match /categorias_veiculo/{catId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /rotas_fixas/{rotaId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /cupons/{cupomId} {
+      allow read: if estaAutenticado();
+      allow write: if isAdmin() || souFranqueado();
+    }
+    match /reportes_motoristas/{reporteId} {
+      allow create: if estaAutenticado();
+      allow read: if isAdmin();
+    }
+
+    match /multas_pendentes/{multaId} {
+      allow read, update: if estaAutenticado() && (
+        request.auth.uid == resource.data.passageiroId || isAdmin()
+      );
+      allow create: if estaAutenticado() && request.auth.uid == request.resource.data.passageiroId;
+    }
+
+    // ===== Clube do Churrasco 071 (Módulo 2) =====
+    // ANTES: allow read, write: if true — QUALQUER pessoa na internet, sem
+    // login nenhum, podia ler/editar/apagar produtos, comandas e vendas.
+    //
+    // ATENÇÃO — REQUER AÇÃO NO CÓDIGO DO APP ANTES DE SUBIR ISSO:
+    // o index.html do clube-churrasco-071 usa só uma senha local (JS), sem
+    // Firebase Authentication. Se você subir esta regra sem antes adicionar
+    // login anônimo do Firebase (signInAnonymously) no index.html dele, o
+    // sistema do cliente para de funcionar (toda leitura/escrita será negada).
+    // Peça-me o trecho de código do login anônimo antes de aplicar esta parte.
+    match /churrasco071_produtos/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_comandas/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_vendas/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_caixas/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_movimentos_caixa/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_fornecedores/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_movimentos_estoque/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_clientes/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_config/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_licenca/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+    match /churrasco071_usuarios/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+
+    // ===== 22 Mobilidade — Agenda de Viagens & Financeiro (agenda-viagens.html) =====
+    // Coleção isolada; o app faz login anônimo (signInAnonymously) para passar
+    // aqui. Se quiser restringir só a você, troque estaAutenticado() por
+    // isAdmin() e faça login no app com seu e-mail de admin.
+    match /agenda_viagens/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+  }
+}
