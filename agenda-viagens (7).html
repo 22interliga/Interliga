@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1420">
+<title>22 Mobilidade · Agenda & Financeiro</title>
+<link rel="manifest" href="22mobilidade-manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="22mobilidade-icon-192.png">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="22 Mobilidade">
+
+<style>
+  :root{
+    --bg:#0E1420; --panel:#161E2E; --panel-2:#1E2839; --line:#26324A;
+    --ink:#E7ECF3; --muted:#8A97AD; --faint:#5C6A82;
+    --blue:#3B6EF6; --blue-dim:#22335c;
+    --amber:#F5A524; --green:#16B364; --pago:#4C9AFF; --red:#F5555D;
+    --radius:16px; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui)}
+  body{padding-bottom:88px;padding-top:env(safe-area-inset-top)}
+  button{font-family:inherit;cursor:pointer;border:none;color:inherit}
+  input,select,textarea{font-family:inherit}
+  h1,h2,h3{margin:0}
+  ::-webkit-scrollbar{width:0;height:0}
+
+  .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#0E1420,#0E1420f2);
+    padding:16px 16px 12px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .topbar-row{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--blue);display:grid;place-items:center;
+    font-weight:800;font-style:italic;letter-spacing:-1px;font-size:15px;color:#fff;box-shadow:0 4px 14px #3b6ef655}
+  .brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+  .brand strong{font-size:16px;letter-spacing:-.3px}
+  .bell{width:38px;height:38px;border-radius:11px;background:var(--panel);border:1px solid var(--line);
+    display:grid;place-items:center;font-size:17px;position:relative}
+  .bell.on{border-color:var(--green);color:var(--green)}
+  .bell .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--red);display:none}
+  .bell.off .dot{display:block}
+  .cloud{width:38px;height:38px;border-radius:11px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;font-size:16px}
+  .cloud.on{border-color:var(--green);color:var(--green)}
+  .cloud.sync{border-color:var(--blue);color:var(--blue)}
+  .cloud.off{color:var(--faint)}
+  .cloud.err{border-color:var(--red);color:var(--red)}
+
+  main{padding:14px 16px 16px}
+  .view{display:none;animation:fade .25s ease} .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  .strip{display:flex;gap:10px;margin-bottom:6px}
+  .stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+  .stat .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.09em;font-weight:700}
+  .stat .v{font-family:var(--mono);font-size:17px;font-weight:600;margin-top:3px}
+  .stat.up .v{color:var(--green)} .stat.down .v{color:var(--red)}
+
+  .sec-h{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 10px}
+  .sec-h h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:12px;position:relative;overflow:hidden}
+  .card:active{background:var(--panel-2)}
+  .card .light{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .card .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-left:6px}
+  .cli{font-weight:700;font-size:16px;letter-spacing:-.2px}
+  .cat-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-top:3px}
+  .cat-dot{width:8px;height:8px;border-radius:50%}
+  .rail{display:flex;align-items:center;gap:8px;margin:12px 0 10px 6px;font-family:var(--mono);font-size:13px}
+  .rail .arr{color:var(--faint)} .rail .time{color:var(--blue);font-weight:600}
+  .route{margin:2px 0 0 6px;color:var(--muted);font-size:13px;line-height:1.5}
+  .route b{color:var(--ink);font-weight:600}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;margin:11px 0 0 6px;font-size:12px;color:var(--muted)}
+  .meta .mono{font-family:var(--mono)}
+  .card .foot{display:flex;justify-content:space-between;align-items:center;margin:12px 6px 0;
+    padding-top:11px;border-top:1px solid var(--line)}
+  .total{font-family:var(--mono);font-size:19px;font-weight:600}
+  .pill{font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;letter-spacing:.04em;
+    display:inline-flex;align-items:center;gap:6px}
+  .pill .d{width:7px;height:7px;border-radius:50%}
+  .pill.aberto{background:#3a2b0e;color:var(--amber)} .pill.aberto .d{background:var(--amber)}
+  .pill.pago{background:#12294d;color:var(--pago)} .pill.pago .d{background:var(--pago)}
+  .pill.quitado{background:#0e2e1f;color:var(--green)} .pill.quitado .d{background:var(--green)}
+  .daylabel{font-family:var(--mono);font-size:12px;color:var(--faint);margin:16px 2px 8px;
+    text-transform:uppercase;letter-spacing:.08em}
+  .daylabel.today{color:var(--blue)}
+  .notif-tag{font-size:10px;color:var(--faint);margin-left:6px}
+
+  .empty{text-align:center;color:var(--muted);padding:44px 20px;border:1px dashed var(--line);border-radius:var(--radius)}
+  .empty .big{font-size:30px;margin-bottom:8px}
+  .empty b{color:var(--ink)}
+
+  /* month nav + financeiro */
+  .monthnav{display:flex;align-items:center;justify-content:space-between;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;padding:6px 6px;margin-bottom:12px}
+  .monthnav button{width:40px;height:36px;border-radius:10px;background:transparent;font-size:20px;color:var(--muted)}
+  .monthnav .lbl{font-weight:700;font-size:15px;text-transform:capitalize}
+  .fin-tot{display:flex;gap:10px;margin-bottom:12px}
+  .fin-tot .stat{cursor:default}
+  .fin-tot .stat.saldo .v.neg{color:var(--red)} .fin-tot .stat.saldo .v.pos{color:var(--green)}
+  .fin-actions{display:flex;gap:10px;margin-bottom:8px}
+  .fin-actions button{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px;font-weight:700;font-size:13px;color:var(--ink)}
+  .fin-actions button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .seg2{display:flex;gap:8px;margin:14px 0 12px}
+  .seg2 button{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px;
+    font-weight:700;font-size:14px;color:var(--muted)}
+  .seg2 button.sel.saida{color:var(--red);border-color:var(--red)}
+  .seg2 button.sel.entrada{color:var(--green);border-color:var(--green)}
+
+  .brk{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px}
+  .brk .top{display:flex;align-items:center;gap:11px}
+  .brk .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:19px;flex:0 0 auto}
+  .brk .nm{flex:1;font-weight:600;font-size:15px}
+  .brk .pct{font-family:var(--mono);color:var(--muted);font-size:12px;margin-right:8px}
+  .brk .val{font-family:var(--mono);font-weight:600;font-size:15px}
+  .brk .bar{height:5px;border-radius:3px;background:var(--line);margin-top:9px;overflow:hidden}
+  .brk .bar i{display:block;height:100%;border-radius:3px}
+
+  .lanc{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:11px 12px;margin-bottom:8px}
+  .lanc .ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:16px;flex:0 0 auto}
+  .lanc .info{flex:1;min-width:0}
+  .lanc .info .n{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lanc .info .s{font-size:11px;color:var(--faint);font-family:var(--mono);margin-top:2px}
+  .lanc .amt{font-family:var(--mono);font-weight:600;font-size:15px;text-align:right;white-space:nowrap}
+  .lanc .amt.entrada{color:var(--green)} .lanc .amt.saida{color:var(--red)}
+
+  /* form */
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
+  .field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--line);
+    border-radius:11px;padding:12px;color:var(--ink);font-size:15px;outline:none}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #3b6ef633}
+  .field input.mono{font-family:var(--mono)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hint{font-size:11px;color:var(--faint);margin-top:5px;font-family:var(--mono)}
+  .calc{background:var(--blue-dim);border:1px solid #35528f;border-radius:12px;padding:12px 14px;
+    display:flex;justify-content:space-between;align-items:center;margin:2px 0 14px}
+  .calc .k{color:#a9c0ff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+  .calc .v{font-family:var(--mono);font-size:22px;font-weight:600;color:#fff}
+
+  .seg{display:flex;gap:8px}
+  .seg button{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:11px 6px;
+    font-size:13px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:5px}
+  .seg button .d{width:9px;height:9px;border-radius:50%;background:var(--faint)}
+  .seg button.sel{color:var(--ink);border-color:currentColor}
+  .seg button.sel.aberto{color:var(--amber)} .seg button.sel.aberto .d{background:var(--amber)}
+  .seg button.sel.pago{color:var(--pago)} .seg button.sel.pago .d{background:var(--pago)}
+  .seg button.sel.quitado{color:var(--green)} .seg button.sel.quitado .d{background:var(--green)}
+  .seg button.sel.entrada{color:var(--green)} .seg button.sel.entrada .d{background:var(--green)}
+  .seg button.sel.saida{color:var(--red)} .seg button.sel.saida .d{background:var(--red)}
+
+  .switch-row{display:flex;align-items:center;justify-content:space-between;
+    background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:11px 12px}
+  .sw{width:46px;height:27px;border-radius:999px;background:var(--line);position:relative;transition:.2s;flex:0 0 auto}
+  .sw::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.2s}
+  .sw.on{background:var(--green)} .sw.on::after{left:22px}
+
+  .btn{width:100%;background:var(--blue);border-radius:12px;padding:15px;font-size:16px;font-weight:700;
+    color:#fff;margin-top:6px;box-shadow:0 6px 18px #3b6ef644}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:var(--panel);border:1px solid var(--line);color:var(--ink);box-shadow:none}
+  .btn.danger{background:transparent;border:1px solid var(--red);color:var(--red);box-shadow:none;margin-top:12px}
+  .btn.wpp{background:#25D366;color:#07341b;box-shadow:0 6px 18px #25d36644}
+  .yrow{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+  .yrow .yb{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 16px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .yrow .yb.sel{background:var(--blue);border-color:var(--blue);color:#fff}
+  .mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .mgrid .mb{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:14px 0;font-weight:700;color:var(--ink);text-transform:capitalize}
+  .mgrid .mb.sel{border-color:var(--blue);color:var(--blue)}
+  .m-lbl-btn{cursor:pointer}
+
+  .cat-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:12px;margin-bottom:10px}
+  .cat-ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;flex:0 0 auto}
+  .cat-item .nm{flex:1;font-weight:600}
+  .cat-item .ed{color:var(--muted);font-size:20px;padding:6px 8px;background:none}
+  .icogrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:10px}
+  .icogrid button{aspect-ratio:1;font-size:22px;background:var(--bg);border:1px solid var(--line);border-radius:11px}
+  .icogrid button.sel{border-color:var(--blue);background:var(--blue-dim)}
+  .colgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+  .colgrid button{aspect-ratio:1;border-radius:50%;border:2px solid transparent}
+  .colgrid button.sel{border-color:#fff;transform:scale(1.12)}
+
+  .filters{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 14px;
+    font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+  .chip.sel{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .quick{display:flex;gap:8px;margin:10px 6px 0}
+  .quick button{flex:1;font-size:12px;font-weight:700;padding:9px;border-radius:10px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+  .quick button.go-pago{color:var(--pago)} .quick button.go-quit{color:var(--green)}
+
+  /* import */
+  .imp-map{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 12px}
+  .imp-map .field{margin:0}
+  .prev{border:1px solid var(--line);border-radius:12px;overflow:auto;margin:6px 0 4px;max-height:230px}
+  table.pv{border-collapse:collapse;width:100%;font-size:12px}
+  table.pv th,table.pv td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;white-space:nowrap}
+  table.pv th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;background:var(--panel-2)}
+  table.pv td.v{font-family:var(--mono)}
+  table.pv td.e{color:var(--green)} table.pv td.s{color:var(--red)}
+  .imp-sum{font-size:13px;color:var(--muted);margin:8px 2px;font-family:var(--mono)}
+  .radios{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .radios button{flex:1;min-width:90px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px;font-size:12px;font-weight:600;color:var(--muted)}
+  .radios button.sel{color:var(--ink);border-color:var(--blue)}
+
+  .fab{position:fixed;right:18px;bottom:96px;z-index:25;width:56px;height:56px;border-radius:18px;
+    background:var(--blue);color:#fff;font-size:28px;display:none;place-items:center;box-shadow:0 8px 22px #3b6ef666}
+  .fab.show{display:grid}
+
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#0E1420f2;backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);display:flex;padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+  .nav button{flex:1;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;
+    color:var(--faint);font-size:10px;font-weight:700;padding:6px 0}
+  .nav button .i{font-size:20px;line-height:1}
+  .nav button.sel{color:var(--blue)}
+
+  .scrim{position:fixed;inset:0;background:#000a;z-index:40;display:none;align-items:flex-end}
+  .scrim.on{display:flex}
+  .sheet{width:100%;background:var(--panel);border-radius:20px 20px 0 0;
+    padding:20px 16px calc(20px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto;
+    border-top:1px solid var(--line);animation:up .25s ease}
+  @keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+  .sheet h3{font-size:17px;margin-bottom:16px}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:100px;z-index:60;background:var(--ink);
+    color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;
+    transition:.25s;box-shadow:0 8px 24px #0008;max-width:88%;text-align:center}
+  .toast.on{opacity:1;bottom:112px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brand">
+      <div class="logo">22</div>
+      <div><small>22 Mobilidade</small><strong id="brand-title">Agenda de Viagens</strong></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="cloud off" id="cloud" title="Dados & backup">☁</button>
+      <button class="bell off" id="bell" title="Notificações">🔔<span class="dot"></span></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- AGENDA -->
+  <section class="view active" id="v-agenda">
+    <div class="strip" id="strip"></div>
+    <div id="agenda-list"></div>
+  </section>
+
+  <!-- FINANCEIRO -->
+  <section class="view" id="v-fin">
+    <div class="monthnav">
+      <button id="m-prev">‹</button>
+      <span class="lbl m-lbl-btn" id="m-lbl"></span>
+      <button id="m-next">›</button>
+    </div>
+    <div class="fin-tot">
+      <div class="stat up"><div class="k">Entradas</div><div class="v" id="t-ent">R$ 0</div></div>
+      <div class="stat down"><div class="k">Saídas</div><div class="v" id="t-sai">R$ 0</div></div>
+      <div class="stat saldo"><div class="k">Saldo</div><div class="v" id="t-sal">R$ 0</div></div>
+    </div>
+    <div class="fin-actions">
+      <button class="primary" id="add-lanc">+ Lançamento</button>
+      <button id="do-import">Importar planilha</button>
+    </div>
+    <div class="seg2" id="fin-tipo">
+      <button data-t="saida">Saídas</button>
+      <button data-t="entrada">Entradas</button>
+    </div>
+    <div id="fin-body"></div>
+  </section>
+
+  <!-- VIAGEM (fora da nav) -->
+  <section class="view" id="v-form">
+    <div class="form">
+      <input type="hidden" id="f-id">
+      <div class="field"><label>Cliente</label><input id="f-cliente" placeholder="Nome do cliente"></div>
+      <div class="field"><label>Contato</label><input id="f-contato" class="mono" inputmode="tel" placeholder="WhatsApp / telefone"></div>
+      <div class="field"><label>Categoria</label><select id="f-cat"></select></div>
+      <div class="grid2">
+        <div class="field"><label>Origem</label><input id="f-origem" placeholder="Saída"></div>
+        <div class="field"><label>Destino</label><input id="f-destino" placeholder="Chegada"></div>
+      </div>
+      <div class="field"><label>Data</label><input id="f-data" type="date" class="mono"></div>
+      <div class="grid2">
+        <div class="field"><label>Horário de saída</label><input id="f-saida" type="time" class="mono"></div>
+        <div class="field"><label>Horário de retorno</label><input id="f-retorno" type="time" class="mono"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Tempo de espera</label><input id="f-espera" class="mono" inputmode="numeric" placeholder="minutos"><div class="hint" id="h-espera">0h00</div></div>
+        <div class="field"><label>Pessoas</label><input id="f-pessoas" class="mono" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Valor da corrida (R$)</label><input id="f-corrida" class="mono" inputmode="decimal" placeholder="0,00"></div>
+        <div class="field"><label>Valor da hora de espera (R$)</label><input id="f-hora" class="mono" inputmode="decimal" placeholder="0,00"></div>
+      </div>
+      <div class="calc"><div class="k">Total da viagem</div><div class="v" id="f-total">R$ 0,00</div></div>
+      <div class="field"><label>Recebimento</label>
+        <div class="seg" id="f-status">
+          <button type="button" data-st="aberto"><span class="d"></span>Em aberto</button>
+          <button type="button" data-st="pago"><span class="d"></span>Pago</button>
+          <button type="button" data-st="quitado"><span class="d"></span>Quitado</button>
+        </div>
+      </div>
+      <div class="field"><label>Notificação do agendamento</label>
+        <div class="switch-row"><span>Avisar antes da saída</span><div class="sw" id="f-notif"></div></div>
+        <div class="grid2" id="notif-when" style="margin-top:10px">
+          <div class="field" style="margin:0"><input id="f-notifmin" class="mono" inputmode="numeric" placeholder="30"><div class="hint">minutos antes</div></div>
+          <div class="field" style="margin:0;display:flex;align-items:center;color:var(--muted);font-size:12px" id="notif-preview"></div>
+        </div>
+      </div>
+      <div class="field"><label>Observação</label><textarea id="f-obs" rows="2" placeholder="Opcional"></textarea></div>
+      <button class="btn wpp" id="wpp">📲 Enviar orçamento no WhatsApp</button>
+      <button class="btn" id="save">Salvar viagem</button>
+      <button class="btn danger" id="del" style="display:none">Excluir viagem</button>
+    </div>
+  </section>
+
+  <!-- RECEBIMENTOS -->
+  <section class="view" id="v-receb">
+    <div class="filters" id="rec-filters">
+      <button class="chip sel" data-f="todos">Todas viagens</button>
+      <button class="chip" data-f="aberto">Em aberto</button>
+      <button class="chip" data-f="pago">Pago</button>
+      <button class="chip" data-f="quitado">Quitado</button>
+    </div>
+    <div id="rec-list"></div>
+  </section>
+
+  <!-- CATEGORIAS -->
+  <section class="view" id="v-cats">
+    <div class="seg2" id="cat-tipo">
+      <button data-t="saida">Saídas</button>
+      <button data-t="entrada">Entradas</button>
+    </div>
+    <div id="cat-list"></div>
+    <button class="btn ghost" id="add-cat">+ Nova categoria</button>
+  </section>
+</main>
+
+<button class="fab" id="fab">+</button>
+
+<nav class="nav">
+  <button data-tab="agenda" class="sel"><span class="i">🗓️</span>Agenda</button>
+  <button data-tab="fin"><span class="i">💰</span>Financeiro</button>
+  <button data-tab="receb"><span class="i">✅</span>Recebimentos</button>
+  <button data-tab="cats"><span class="i">🏷️</span>Categorias</button>
+</nav>
+
+<div class="scrim" id="scrim"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== Storage: window.storage → localStorage → memória ===== */
+const Store = (() => {
+  const has = typeof window!=='undefined' && window.storage && window.storage.get;
+  const mem = {};
+  return {
+    async get(k){
+      try{
+        if(has){ const r = await window.storage.get(k); return r? JSON.parse(r.value): null; }
+        const v = localStorage.getItem(k); return v? JSON.parse(v): null;
+      }catch(e){ return mem[k] ?? null; }
+    },
+    async set(k,val){
+      const s = JSON.stringify(val); mem[k]=val;
+      try{ if(has){ await window.storage.set(k,s,false); } else { localStorage.setItem(k,s); } }catch(e){}
+    }
+  };
+})();
+
+/* ===== Nuvem (Firebase Firestore) =====
+   PARA ATIVAR A SINCRONIZAÇÃO: cole abaixo o firebaseConfig do seu projeto
+   interliga-app (Console Firebase › Configurações do projeto › Seus apps).
+   Você pode copiar o MESMO bloco de qualquer outro sistema seu que já usa
+   Firebase. Enquanto estiver em branco, o app funciona só neste aparelho. */
+const FB = {
+  config: {
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
+  },
+  prefix: "agenda_viagens"   // isola os dados deste sistema dentro do projeto
+};
+let db=null, cloudOn=false;
+const NS="22mob_";   // isola o armazenamento local deste app (mesmo domínio dos outros)
+const arrRef={viagens:()=>VIAGENS, lancamentos:()=>LANCS, cats:()=>CATS};
+function setArr(k,v){ if(k==='viagens')VIAGENS=v; else if(k==='lancamentos')LANCS=v; else CATS=v; }
+function cloudBadge(state){
+  const el=$('#cloud'); if(!el)return;
+  const map={ok:['☁','on'],sync:['⟳','sync'],local:['⛌','off'],erro:['!','err'],off:['☁','off']};
+  const [ic,cls]=map[state]||map.local; el.textContent=ic; el.className='cloud '+cls;
+}
+async function cloudInit(){
+  const c=FB.config;
+  if(!(c.apiKey && c.projectId) || typeof firebase==='undefined'){ cloudBadge('local'); return; }
+  try{
+    firebase.initializeApp(c); db=firebase.firestore();
+    try{ await db.enablePersistence({synchronizeTabs:true}); }catch(e){}
+    cloudOn=true; cloudBadge('sync'); subscribeCloud();
+  }catch(e){ cloudBadge('erro'); }
+}
+function subscribeCloud(){
+  ['viagens','lancamentos','cats'].forEach(key=>{
+    db.collection(FB.prefix).doc(key).onSnapshot(snap=>{
+      if(!snap.exists){ cloudSet(key, arrRef[key]()); return; } // 1ª vez: sobe o que já existe
+      const items=snap.data().items||[];
+      setArr(key, items); Store.set(NS+key, items); renderAll(); scheduleAll(); cloudBadge('ok');
+    }, ()=>cloudBadge('erro'));
+  });
+}
+async function cloudSet(key, arr){
+  if(!cloudOn||!db) return;
+  try{ cloudBadge('sync'); await db.collection(FB.prefix).doc(key).set({items:arr, updatedAt:Date.now()}); cloudBadge('ok'); }
+  catch(e){ cloudBadge('erro'); }
+}
+
+/* ===== Estado ===== */
+let VIAGENS=[], LANCS=[], CATS=[];
+let filtroRec='todos', formStatus='aberto', formNotif=false;
+let fMonth=new Date(); fMonth.setDate(1);
+let finTipo='saida', catTipo='saida';
+
+const ICONES=['🚗','🚙','🚐','🚕','🛻','🏍️','✈️','🏥','🏢','🏖️','🎓','⛪','🛒','🎉','📦','⭐','🧳','🗺️','⛽','🔧','🛣️','🍲','💊','🏠','📱','💰','🍺','🐶'];
+const CORES=['#3B6EF6','#16B364','#F5A524','#F5555D','#9B7EDE','#22B8CF','#E64980','#96A38C','#4C9AFF','#F76707','#2F9E44','#748FFC','#12B886','#FA5252','#845EF7','#868E96'];
+const CATS_PADRAO=[
+  {id:'e1',nome:'Viagens',icone:'🚗',cor:'#96A38C',tipo:'entrada'},
+  {id:'e2',nome:'Ponto',icone:'🚕',cor:'#E64980',tipo:'entrada'},
+  {id:'e3',nome:'Aplicativo',icone:'🚙',cor:'#E64980',tipo:'entrada'},
+  {id:'e4',nome:'Interliga',icone:'🗺️',cor:'#3B6EF6',tipo:'entrada'},
+  {id:'e5',nome:'22 Mobilidade',icone:'🚐',cor:'#748FFC',tipo:'entrada'},
+  {id:'s1',nome:'Gasolina',icone:'⛽',cor:'#F5A524',tipo:'saida'},
+  {id:'s2',nome:'Alimentação',icone:'🍲',cor:'#F5555D',tipo:'saida'},
+  {id:'s3',nome:'Manutenção',icone:'🔧',cor:'#E64980',tipo:'saida'},
+  {id:'s4',nome:'Pedágio',icone:'🛣️',cor:'#96A38C',tipo:'saida'},
+  {id:'s5',nome:'Parcela do carro',icone:'🚗',cor:'#4C9AFF',tipo:'saida'},
+  {id:'s6',nome:'Lazer',icone:'🎉',cor:'#22B8CF',tipo:'saida'}
+];
+
+/* ===== Helpers ===== */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const money=n=>'R$ '+(Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0=n=>'R$ '+Math.round(Number(n)||0).toLocaleString('pt-BR');
+const num=v=>{ if(v==null)return 0; return parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0; };
+const catById=id=>CATS.find(c=>c.id===id)||{nome:'—',icone:'❓',cor:'#5C6A82'};
+const catsBy=t=>CATS.filter(c=>c.tipo===t);
+function hhmm(min){ min=Number(min)||0; const h=Math.floor(min/60), m=min%60; return h+'h'+String(m).padStart(2,'0'); }
+function calcTotal(v){ return num(v.valorCorrida) + (Number(v.esperaMin)||0)/60*num(v.valorHoraEspera); }
+const STLBL={aberto:'Em aberto',pago:'Pago',quitado:'Quitado'};
+const monthKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+
+function dataLabel(iso){
+  if(!iso) return 'Sem data';
+  const d=new Date(iso+'T00:00'), hoje=new Date(); hoje.setHours(0,0,0,0);
+  const dif=Math.round((d-hoje)/86400000);
+  const wd=['dom','seg','ter','qua','qui','sex','sáb'][d.getDay()];
+  const base=`${wd} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  if(dif===0) return 'Hoje · '+base; if(dif===1) return 'Amanhã · '+base; if(dif===-1) return 'Ontem · '+base;
+  return base;
+}
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),2000); }
+
+/* ===== Init ===== */
+(async function init(){
+  VIAGENS = await Store.get(NS+'viagens') || [];
+  LANCS   = await Store.get(NS+'lancamentos') || [];
+  CATS    = await Store.get(NS+'cats');
+  if(!CATS || !CATS.length){ CATS=CATS_PADRAO.slice(); }
+  CATS.forEach(c=>{ if(!c.tipo) c.tipo='entrada'; });
+  if(!CATS.some(c=>c.tipo==='saida')) CATS.push(...CATS_PADRAO.filter(c=>c.tipo==='saida'));
+  await Store.set(NS+'cats',CATS);
+
+  bindNav(); bindForm(); bindCats(); bindReceb(); bindFin();
+  $('#bell').onclick=askNotif; $('#fab').onclick=()=>openForm(null); $('#cloud').onclick=dadosSheet;
+  window.addEventListener('online',()=>{ if(cloudOn)cloudBadge('ok'); });
+  window.addEventListener('offline',()=>{ if(cloudOn)cloudBadge('off'); });
+  refreshNotifPerm(); renderAll(); scheduleAll(); cloudInit();
+})();
+
+const saveViagens=async()=>{ await Store.set(NS+'viagens',VIAGENS); cloudSet('viagens',VIAGENS); };
+const saveLancs=async()=>{ await Store.set(NS+'lancamentos',LANCS); cloudSet('lancamentos',LANCS); };
+const saveCats=async()=>{ await Store.set(NS+'cats',CATS); cloudSet('cats',CATS); };
+
+/* ===== Render geral ===== */
+function renderAll(){ renderStrip(); renderAgenda(); renderReceb(); renderCats(); renderFin(); fillCatSelect(); }
+
+function renderStrip(){
+  const receb=VIAGENS.filter(v=>v.status!=='aberto').reduce((s,v)=>s+calcTotal(v),0);
+  const aberto=VIAGENS.filter(v=>v.status==='aberto').reduce((s,v)=>s+calcTotal(v),0);
+  const hoje=new Date().toISOString().slice(0,10);
+  const nHoje=VIAGENS.filter(v=>v.data===hoje).length;
+  $('#strip').innerHTML=`
+    <div class="stat"><div class="k">Viagens hoje</div><div class="v">${nHoje}</div></div>
+    <div class="stat up"><div class="k">Recebido</div><div class="v">${money0(receb)}</div></div>
+    <div class="stat down"><div class="k">Em aberto</div><div class="v">${money0(aberto)}</div></div>`;
+}
+
+/* ===== Agenda ===== */
+function renderAgenda(){
+  const el=$('#agenda-list');
+  if(!VIAGENS.length){
+    el.innerHTML=`<div class="empty"><div class="big">🗓️</div><b>Nenhuma viagem agendada</b><br>Toque no botão <b>+</b> para registrar a primeira corrida.</div>`;
+    return;
+  }
+  const ord=[...VIAGENS].sort((a,b)=>(a.data+a.saida).localeCompare(b.data+b.saida));
+  const hoje=new Date().toISOString().slice(0,10);
+  let html='', dia=null;
+  for(const v of ord){
+    if(v.data!==dia){ dia=v.data; html+=`<div class="daylabel ${dia===hoje?'today':''}">${dataLabel(dia)}</div>`; }
+    html+=cardHTML(v);
+  }
+  el.innerHTML=html;
+  $$('#agenda-list .card').forEach(c=>c.onclick=()=>openForm(c.dataset.id));
+}
+function cardHTML(v){
+  const c=catById(v.categoriaId), tot=calcTotal(v);
+  const rota=(v.origem||v.destino)?`<div class="route"><b>${v.origem||'—'}</b> → <b>${v.destino||'—'}</b></div>`:'';
+  const espera=v.esperaMin>0?`<span>⏱ espera <span class="mono">${hhmm(v.esperaMin)}</span></span>`:'';
+  const pess=v.pessoas>0?`<span>👤 <span class="mono">${v.pessoas}</span></span>`:'';
+  const notif=v.notificar?`<span class="notif-tag">🔔 ${v.notifMin||30}min</span>`:'';
+  return `<div class="card" data-id="${v.id}">
+    <div class="light" style="background:${c.cor}"></div>
+    <div class="head"><div><div class="cli">${v.cliente||'Sem nome'}</div>
+      <div class="cat-tag"><span class="cat-dot" style="background:${c.cor}"></span>${c.icone} ${c.nome}${notif}</div></div>
+      <span class="pill ${v.status}"><span class="d"></span>${STLBL[v.status]}</span></div>
+    <div class="rail"><span class="time">${v.saida||'--:--'}</span><span class="arr">→</span><span class="time">${v.retorno||'--:--'}</span></div>
+    ${rota}<div class="meta">${pess}${espera}${v.contato?`<span>📞 <span class="mono">${v.contato}</span></span>`:''}</div>
+    <div class="foot"><div class="total">${money(tot)}</div><span style="color:var(--faint);font-size:12px">editar ›</span></div></div>`;
+}
+
+/* ===== Financeiro ===== */
+function bindFin(){
+  $('#m-prev').onclick=()=>{fMonth.setMonth(fMonth.getMonth()-1);renderFin();};
+  $('#m-lbl').onclick=openMonthPicker;
+  $('#m-next').onclick=()=>{fMonth.setMonth(fMonth.getMonth()+1);renderFin();};
+  $$('#fin-tipo button').forEach(b=>b.onclick=()=>{finTipo=b.dataset.t;renderFin();});
+  $('#add-lanc').onclick=()=>lancSheet(null);
+  $('#do-import').onclick=importSheet;
+}
+/* Movimentos do mês = lançamentos manuais + viagens (virtual, sem duplicar).
+   Regra: só QUITADO conta no financeiro real. Aberto/Pago = a receber/pagar. */
+function movimentos(mk){
+  const out=[];
+  LANCS.filter(l=>(l.data||'').startsWith(mk)).forEach(l=>out.push(
+    {id:l.id,kind:'lanc',tipo:l.tipo,catId:l.catId,valor:num(l.valor),data:l.data,status:l.status||'quitado',obs:l.obs||''}));
+  VIAGENS.filter(v=>(v.data||'').startsWith(mk)).forEach(v=>out.push(
+    {id:v.id,kind:'viagem',tipo:'entrada',catId:v.categoriaId,valor:calcTotal(v),data:v.data,status:v.status||'aberto',obs:v.cliente||'Viagem'}));
+  return out;
+}
+const isReal=s=>s==='quitado';
+function movItem(m){ const c=catById(m.catId);
+  return `<div class="lanc" data-id="${m.id}" data-kind="${m.kind}">
+    <div class="ico" style="background:${c.cor}33;color:${c.cor}">${c.icone}</div>
+    <div class="info"><div class="n">${m.kind==='viagem'?'🚗 ':''}${m.obs||c.nome}</div>
+      <div class="s">${(m.data||'').split('-').reverse().join('/')} · ${c.nome} · ${STLBL[m.status]||''}</div></div>
+    <div class="amt ${m.tipo}">${m.tipo==='saida'?'-':'+'}${money(m.valor)}</div></div>`;
+}
+
+function renderFin(){
+  const mk=monthKey(fMonth);
+  $('#m-lbl').textContent=fMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const mov=movimentos(mk);
+  const real=mov.filter(m=>isReal(m.status)), prev=mov.filter(m=>!isReal(m.status));
+  const ent=real.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+m.valor,0);
+  const sai=real.filter(m=>m.tipo==='saida').reduce((s,m)=>s+m.valor,0);
+  const sal=ent-sai;
+  $('#t-ent').textContent=money0(ent); $('#t-sai').textContent=money0(sai);
+  const sv=$('#t-sal'); sv.textContent=money0(sal); sv.className='v '+(sal<0?'neg':'pos');
+  $$('#fin-tipo button').forEach(b=>{ b.className=''; if(b.dataset.t===finTipo) b.classList.add('sel',finTipo); });
+
+  const aReceber=prev.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+m.valor,0);
+  const aPagar=prev.filter(m=>m.tipo==='saida').reduce((s,m)=>s+m.valor,0);
+  let banner='';
+  if(prev.length){
+    banner=`<div id="receber-banner" style="display:flex;gap:10px;align-items:center;justify-content:space-between;background:#3a2b0e;border:1px solid #6b5010;border-radius:14px;padding:12px 14px;margin-bottom:12px">
+      <div><div style="color:var(--amber);font-weight:700;font-size:13px">A receber / a pagar · ${prev.length}</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:2px">não conta no real até quitar</div></div>
+      <div style="text-align:right;font-family:var(--mono)">
+        ${aReceber?`<div style="color:var(--green);font-weight:600">+${money0(aReceber)}</div>`:''}
+        ${aPagar?`<div style="color:var(--red);font-weight:600">-${money0(aPagar)}</div>`:''}
+        <div style="color:var(--faint);font-size:11px">ver ›</div></div></div>`;
+  }
+
+  const typed=real.filter(m=>m.tipo===finTipo);
+  const totT=typed.reduce((s,m)=>s+m.valor,0);
+  let content;
+  if(!typed.length){
+    content=`<div class="empty"><div class="big">${finTipo==='saida'?'📉':'📈'}</div><b>Sem ${finTipo==='saida'?'saídas':'entradas'} realizadas</b><br>Só entra aqui quando marcado como <b>Quitado</b>.</div>`;
+  }else{
+    const byCat={}; typed.forEach(m=>byCat[m.catId]=(byCat[m.catId]||0)+m.valor);
+    const rows=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    content='<div class="sec-h"><h2>Realizado por categoria</h2></div>';
+    for(const [cid,val] of rows){ const c=catById(cid),pct=totT?Math.round(val/totT*100):0;
+      content+=`<div class="brk"><div class="top">
+        <div class="ico" style="background:${c.cor}33;color:${c.cor}">${c.icone}</div>
+        <div class="nm">${c.nome}</div><div class="pct">${pct}%</div><div class="val">${money(val)}</div></div>
+        <div class="bar"><i style="width:${pct}%;background:${c.cor}"></i></div></div>`; }
+    content+='<div class="sec-h"><h2>Movimentos realizados</h2></div>';
+    typed.sort((a,b)=>(b.data||'').localeCompare(a.data||'')).forEach(m=>content+=movItem(m));
+  }
+  $('#fin-body').innerHTML=banner+content;
+  const bn=$('#receber-banner'); if(bn) bn.onclick=()=>receberSheet(mk);
+  $$('#fin-body .lanc').forEach(x=>x.onclick=()=>x.dataset.kind==='viagem'?openForm(x.dataset.id):lancSheet(x.dataset.id));
+}
+
+function receberSheet(mk){
+  const prev=movimentos(mk).filter(m=>!isReal(m.status)).sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  const list=prev.map(m=>{ const c=catById(m.catId);
+    return `<div class="lanc" data-id="${m.id}" data-kind="${m.kind}">
+      <div class="ico" style="background:${c.cor}33;color:${c.cor}">${c.icone}</div>
+      <div class="info"><div class="n">${m.kind==='viagem'?'🚗 ':''}${m.obs||c.nome}</div>
+        <div class="s">${(m.data||'').split('-').reverse().join('/')} · ${STLBL[m.status]}</div></div>
+      <div style="text-align:right"><div class="amt ${m.tipo}">${m.tipo==='saida'?'-':'+'}${money(m.valor)}</div>
+        <button class="q-quit" data-id="${m.id}" data-kind="${m.kind}" style="margin-top:6px;font-size:11px;font-weight:700;color:var(--green);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 10px">Quitar</button></div></div>`;
+  }).join('') || '<div class="empty"><b>Nada pendente neste mês</b></div>';
+  $('#sheet').innerHTML=`<h3>A receber / a pagar</h3>
+    <p style="color:var(--muted);font-size:13px;margin:-6px 0 14px;line-height:1.5">Estes valores <b>não</b> contam no financeiro real. Ao <b>quitar</b>, entram no mês automaticamente.</p>${list}`;
+  openSheet();
+  $$('#sheet .q-quit').forEach(b=>b.onclick=async e=>{ e.stopPropagation();
+    if(b.dataset.kind==='viagem'){ const v=VIAGENS.find(x=>x.id===b.dataset.id); v.status='quitado'; await saveViagens(); }
+    else { const l=LANCS.find(x=>x.id===b.dataset.id); l.status='quitado'; await saveLancs(); }
+    renderAll(); receberSheet(mk); toast('Quitado · entrou no financeiro real'); });
+  $$('#sheet .lanc').forEach(x=>x.onclick=()=>{ closeSheet(); x.dataset.kind==='viagem'?openForm(x.dataset.id):lancSheet(x.dataset.id); });
+}
+
+function lancSheet(id){
+  const l=id?LANCS.find(x=>x.id===id):{tipo:finTipo,catId:'',valor:'',data:new Date().toISOString().slice(0,10),status:'quitado',obs:''};
+  let tipo=l.tipo;
+  const catOpts=t=>catsBy(t).map(c=>`<option value="${c.id}">${c.icone}  ${c.nome}</option>`).join('');
+  $('#sheet').innerHTML=`
+    <h3>${id?'Editar lançamento':'Novo lançamento'}</h3>
+    <div class="field"><label>Tipo</label><div class="seg" id="l-tipo">
+      <button data-t="saida"><span class="d"></span>Saída</button>
+      <button data-t="entrada"><span class="d"></span>Entrada</button></div></div>
+    <div class="field"><label>Categoria</label><select id="l-cat">${catOpts(tipo)}</select></div>
+    <div class="field"><label>Valor (R$)</label><input id="l-valor" class="mono" inputmode="decimal" value="${l.valor!==''?String(l.valor).replace('.',','):''}" placeholder="0,00"></div>
+    <div class="field"><label>Data</label><input id="l-data" type="date" class="mono" value="${l.data||''}"></div>
+    <div class="field"><label>Situação</label><div class="seg" id="l-status">
+      <button data-st="aberto"><span class="d"></span>Em aberto</button>
+      <button data-st="pago"><span class="d"></span>Pago</button>
+      <button data-st="quitado"><span class="d"></span>Quitado</button></div></div>
+    <div class="field"><label>Observação</label><input id="l-obs" value="${l.obs||''}" placeholder="Opcional"></div>
+    <button class="btn" id="l-save">Salvar</button>
+    ${id?'<button class="btn danger" id="l-del">Excluir</button>':''}`;
+  openSheet();
+  const selTipo=t=>{tipo=t;$$('#l-tipo button').forEach(b=>{b.className='';if(b.dataset.t===t)b.classList.add('sel',t);});$('#l-cat').innerHTML=catOpts(t);};
+  const selSt=st=>$$('#l-status button').forEach(b=>{b.className='';if(b.dataset.st===st)b.classList.add('sel',st);});
+  $$('#l-tipo button').forEach(b=>b.onclick=()=>selTipo(b.dataset.t));
+  $$('#l-status button').forEach(b=>b.onclick=()=>selSt(b.dataset.st));
+  selTipo(tipo); if(id)$('#l-cat').value=l.catId; selSt(l.status||'quitado');
+  $('#l-save').onclick=async()=>{
+    const valor=num($('#l-valor').value); if(!valor)return toast('Informe o valor');
+    if(!$('#l-cat').value)return toast('Escolha a categoria');
+    const st=$$('#l-status button.sel')[0]?.dataset.st||'pago';
+    const rec={id:id||uid(),tipo,catId:$('#l-cat').value,valor,data:$('#l-data').value,status:st,obs:$('#l-obs').value.trim()};
+    const i=LANCS.findIndex(x=>x.id===rec.id);
+    if(i>=0)LANCS[i]=rec; else LANCS.push(rec);
+    await saveLancs(); closeSheet(); renderFin(); toast(id?'Lançamento atualizado':'Lançamento salvo');
+  };
+  if(id)$('#l-del').onclick=async()=>{LANCS=LANCS.filter(x=>x.id!==id);await saveLancs();closeSheet();renderFin();toast('Excluído');};
+}
+
+/* ===== Importar planilha (CSV) ===== */
+function detectDelim(line){
+  const c=(line.match(/;/g)||[]).length, v=(line.match(/,/g)||[]).length, t=(line.match(/\t/g)||[]).length;
+  if(t>=c&&t>=v)return '\t'; return c>=v?';':',';
+}
+function parseCSV(text,delim){
+  const rows=[]; let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){ const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else{ if(ch==='"')q=true; else if(ch===delim){row.push(cur);cur='';}
+      else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+      else if(ch==='\r'){} else cur+=ch; } }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+function parseValorBR(s){
+  if(s==null)return 0; s=String(s).trim(); let neg=/^\(|-/.test(s);
+  s=s.replace(/[^\d.,-]/g,'').replace(/[()]/g,'');
+  if(s.includes(',')&&s.includes('.')) s=s.replace(/\./g,'').replace(',','.');
+  else if(s.includes(',')) s=s.replace(',','.');
+  else if((s.match(/\./g)||[]).length>1) s=s.replace(/\./g,'');
+  let n=parseFloat(s)||0; return neg?-Math.abs(n):n;
+}
+function parseDataBR(s){
+  if(!s)return ''; s=String(s).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+  m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if(m){ let[,d,mo,y]=m; if(y.length===2)y='20'+y; return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  return '';
+}
+let impRows=[], impHead=[], impTipoMode='col';
+function importSheet(){
+  $('#sheet').innerHTML=`<h3>Importar planilha</h3>
+    <p style="color:var(--muted);font-size:13px;margin:-6px 0 14px;line-height:1.5">Exporte sua planilha do Excel como <b>CSV</b> (Arquivo › Salvar como › CSV) e selecione o arquivo. Você confere tudo antes de gravar.</p>
+    <input type="file" id="imp-file" accept=".csv,text/csv" style="width:100%;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:12px;color:var(--ink)">
+    <div id="imp-cfg"></div>`;
+  openSheet();
+  $('#imp-file').onchange=e=>{ const f=e.target.files[0]; if(!f)return;
+    const r=new FileReader(); r.onload=()=>impConfig(r.result); r.readAsText(f,'utf-8'); };
+}
+function impConfig(text){
+  const delim=detectDelim((text.split('\n')[0]||''));
+  const rows=parseCSV(text,delim); if(rows.length<2){toast('Planilha vazia ou ilegível');return;}
+  impHead=rows[0].map(h=>h.trim()); impRows=rows.slice(1);
+  const opts=(sel)=>impHead.map((h,i)=>`<option value="${i}" ${sel===i?'selected':''}>${h||('Coluna '+(i+1))}</option>`).join('');
+  const guess=re=>{const i=impHead.findIndex(h=>re.test(h.toLowerCase()));return i<0?'':i;};
+  const gData=guess(/data|dia|venc/), gCat=guess(/categ|descri|hist|nome|item/), gVal=guess(/valor|preç|total|r\$|amount/), gTipo=guess(/tipo|entrada|saída|saida|receita|despesa|d\/c/), gObs=guess(/obs|coment|nota/);
+  $('#imp-cfg').innerHTML=`
+    <div class="sec-h"><h2>Mapear colunas</h2></div>
+    <div class="imp-map">
+      <div class="field"><label>Data</label><select id="mp-data">${opts(gData)}</select></div>
+      <div class="field"><label>Categoria</label><select id="mp-cat">${opts(gCat)}</select></div>
+      <div class="field"><label>Valor</label><select id="mp-val">${opts(gVal)}</select></div>
+      <div class="field"><label>Observação (opcional)</label><select id="mp-obs"><option value="">—</option>${opts(gObs)}</select></div>
+    </div>
+    <div class="field"><label>Como definir entrada/saída?</label>
+      <div class="radios" id="mp-tipo">
+        <button data-m="col" class="sel">Tenho coluna de tipo</button>
+        <button data-m="sign">Pelo sinal (- = saída)</button>
+        <button data-m="entrada">Tudo entrada</button>
+        <button data-m="saida">Tudo saída</button>
+      </div>
+      <div id="mp-tipocol" class="field" style="margin-top:10px"><label>Coluna do tipo</label><select id="mp-tcol">${opts(gTipo)}</select></div>
+    </div>
+    <button class="btn ghost" id="imp-prev">Ver prévia</button>
+    <div id="imp-out"></div>`;
+  impTipoMode='col';
+  $$('#mp-tipo button').forEach(b=>b.onclick=()=>{impTipoMode=b.dataset.m;$$('#mp-tipo button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');$('#mp-tipocol').style.display=impTipoMode==='col'?'block':'none';});
+  $('#imp-prev').onclick=impPreview;
+}
+function impBuild(){
+  const ci={data:+$('#mp-data').value,cat:+$('#mp-cat').value,val:+$('#mp-val').value,
+    obs:$('#mp-obs').value===''?-1:+$('#mp-obs').value,tcol:$('#mp-tcol')?+$('#mp-tcol').value:-1};
+  return impRows.map(r=>{
+    let valor=parseValorBR(r[ci.val]);
+    let tipo='entrada';
+    if(impTipoMode==='entrada')tipo='entrada';
+    else if(impTipoMode==='saida')tipo='saida';
+    else if(impTipoMode==='sign')tipo=valor<0?'saida':'entrada';
+    else{ const t=(r[ci.tcol]||'').toLowerCase(); tipo=/sa|desp|deb|d\b|-/.test(t)&&!/entr|rec/.test(t)?'saida':'entrada'; }
+    return {catNome:(r[ci.cat]||'').trim()||'Sem categoria',valor:Math.abs(valor),tipo,
+      data:parseDataBR(r[ci.data])||new Date().toISOString().slice(0,10),obs:ci.obs>=0?(r[ci.obs]||'').trim():''};
+  }).filter(x=>x.valor>0);
+}
+function impPreview(){
+  const items=impBuild();
+  if(!items.length){$('#imp-out').innerHTML='<div class="imp-sum">Nenhuma linha com valor válido. Confira a coluna de valor.</div>';return;}
+  const ent=items.filter(i=>i.tipo==='entrada').reduce((s,i)=>s+i.valor,0);
+  const sai=items.filter(i=>i.tipo==='saida').reduce((s,i)=>s+i.valor,0);
+  let rows=items.slice(0,8).map(i=>`<tr><td>${i.data.split('-').reverse().join('/')}</td><td>${i.catNome}</td>
+    <td>${i.tipo==='saida'?'Saída':'Entrada'}</td><td class="v ${i.tipo==='entrada'?'e':'s'}">${money(i.valor)}</td></tr>`).join('');
+  $('#imp-out').innerHTML=`
+    <div class="sec-h"><h2>Prévia (${items.length} lançamentos)</h2></div>
+    <div class="prev"><table class="pv"><thead><tr><th>Data</th><th>Categoria</th><th>Tipo</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="imp-sum">+ ${money(ent)} entradas &nbsp;·&nbsp; - ${money(sai)} saídas &nbsp;·&nbsp; importados como <b>Quitado</b> (entram no financeiro real)</div>
+    <button class="btn" id="imp-go">Importar ${items.length} lançamentos</button>`;
+  $('#imp-go').onclick=()=>impCommit(items);
+}
+async function impCommit(items){
+  for(const it of items){
+    let c=CATS.find(x=>x.tipo===it.tipo && x.nome.toLowerCase()===it.catNome.toLowerCase());
+    if(!c){ c={id:uid(),nome:it.catNome,icone:it.tipo==='saida'?'💰':'🚗',cor:it.tipo==='saida'?'#F5555D':'#16B364',tipo:it.tipo}; CATS.push(c); }
+    LANCS.push({id:uid(),tipo:it.tipo,catId:c.id,valor:it.valor,data:it.data,status:'quitado',obs:it.obs});
+  }
+  await saveCats(); await saveLancs(); closeSheet(); renderAll(); toast(items.length+' lançamentos importados');
+}
+
+/* ===== Recebimentos (viagens) ===== */
+function bindReceb(){ $$('#rec-filters .chip').forEach(b=>b.onclick=()=>{
+  $$('#rec-filters .chip').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); filtroRec=b.dataset.f; renderReceb(); }); }
+function renderReceb(){
+  const el=$('#rec-list');
+  let list=[...VIAGENS].sort((a,b)=>(b.data+b.saida).localeCompare(a.data+a.saida));
+  if(filtroRec!=='todos') list=list.filter(v=>v.status===filtroRec);
+  if(!list.length){ el.innerHTML=`<div class="empty"><div class="big">✅</div><b>Nada por aqui</b><br>Sem viagens neste filtro.</div>`; return; }
+  el.innerHTML=list.map(v=>{ const c=catById(v.categoriaId);
+    return `<div class="card" data-id="${v.id}"><div class="light" style="background:${c.cor}"></div>
+      <div class="head"><div><div class="cli">${v.cliente||'Sem nome'}</div>
+        <div class="cat-tag"><span class="cat-dot" style="background:${c.cor}"></span>${dataLabel(v.data)} · ${v.saida||'--:--'}</div></div>
+        <span class="pill ${v.status}"><span class="d"></span>${STLBL[v.status]}</span></div>
+      <div class="foot"><div class="total">${money(calcTotal(v))}</div></div>
+      <div class="quick"><button data-go="aberto" data-id="${v.id}">Em aberto</button>
+        <button class="go-pago" data-go="pago" data-id="${v.id}">Pago</button>
+        <button class="go-quit" data-go="quitado" data-id="${v.id}">Quitar</button></div></div>`;
+  }).join('');
+  $$('#rec-list .quick button').forEach(b=>b.onclick=async e=>{ e.stopPropagation();
+    const v=VIAGENS.find(x=>x.id===b.dataset.id); v.status=b.dataset.go; await saveViagens(); renderAll(); toast('Status: '+STLBL[b.dataset.go]); });
+  $$('#rec-list .card').forEach(c=>c.onclick=()=>openForm(c.dataset.id));
+}
+
+/* ===== Categorias ===== */
+function fillCatSelect(){ const sel=$('#f-cat'),cur=sel.value;
+  sel.innerHTML=catsBy('entrada').map(c=>`<option value="${c.id}">${c.icone}  ${c.nome}</option>`).join('');
+  if(cur&&CATS.some(c=>c.id===cur))sel.value=cur; }
+function bindCats(){ $('#add-cat').onclick=()=>catSheet(null);
+  $$('#cat-tipo button').forEach(b=>b.onclick=()=>{catTipo=b.dataset.t;renderCats();}); }
+function renderCats(){
+  $$('#cat-tipo button').forEach(b=>{b.className='';if(b.dataset.t===catTipo)b.classList.add('sel',catTipo);});
+  $('#cat-list').innerHTML=catsBy(catTipo).map(c=>`
+    <div class="cat-item"><div class="cat-ico" style="background:${c.cor}33;color:${c.cor}">${c.icone}</div>
+      <div class="nm">${c.nome}</div><button class="ed" data-id="${c.id}">✏️</button></div>`).join('')
+    || `<div class="empty"><b>Nenhuma categoria de ${catTipo==='saida'?'saída':'entrada'}</b></div>`;
+  $$('#cat-list .ed').forEach(b=>b.onclick=()=>catSheet(b.dataset.id));
+}
+function catSheet(id){
+  const c=id?CATS.find(x=>x.id===id):{nome:'',icone:catTipo==='saida'?'💰':'🚗',cor:catTipo==='saida'?'#F5555D':'#16B364',tipo:catTipo};
+  let ic=c.icone,cor=c.cor,tp=c.tipo;
+  $('#sheet').innerHTML=`<h3>${id?'Editar categoria':'Nova categoria'}</h3>
+    <div class="field"><label>Tipo</label><div class="seg" id="cs-tipo">
+      <button data-t="saida"><span class="d"></span>Saída</button>
+      <button data-t="entrada"><span class="d"></span>Entrada</button></div></div>
+    <div class="field"><label>Nome</label><input id="cs-nome" value="${c.nome}" placeholder="Ex.: Aeroporto"></div>
+    <div class="field"><label>Ícone</label><div class="icogrid" id="cs-icos">${ICONES.map(i=>`<button data-i="${i}" class="${i===ic?'sel':''}">${i}</button>`).join('')}</div></div>
+    <div class="field"><label>Cor</label><div class="colgrid" id="cs-cols">${CORES.map(cc=>`<button data-c="${cc}" style="background:${cc}" class="${cc===cor?'sel':''}"></button>`).join('')}</div></div>
+    <button class="btn" id="cs-save">Salvar</button>
+    ${id?'<button class="btn danger" id="cs-del">Excluir categoria</button>':''}`;
+  openSheet();
+  const selT=t=>{tp=t;$$('#cs-tipo button').forEach(b=>{b.className='';if(b.dataset.t===t)b.classList.add('sel',t);});};
+  $$('#cs-tipo button').forEach(b=>b.onclick=()=>selT(b.dataset.t)); selT(tp);
+  $$('#cs-icos button').forEach(b=>b.onclick=()=>{ic=b.dataset.i;$$('#cs-icos button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');});
+  $$('#cs-cols button').forEach(b=>b.onclick=()=>{cor=b.dataset.c;$$('#cs-cols button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');});
+  $('#cs-save').onclick=async()=>{ const nome=$('#cs-nome').value.trim(); if(!nome)return toast('Dê um nome');
+    if(id)Object.assign(CATS.find(x=>x.id===id),{nome,icone:ic,cor,tipo:tp});
+    else CATS.push({id:uid(),nome,icone:ic,cor,tipo:tp});
+    await saveCats(); closeSheet(); catTipo=tp; renderAll(); toast('Categoria salva'); };
+  if(id)$('#cs-del').onclick=async()=>{
+    if(VIAGENS.some(v=>v.categoriaId===id)||LANCS.some(l=>l.catId===id))return toast('Há registros nesta categoria');
+    CATS=CATS.filter(x=>x.id!==id); await saveCats(); closeSheet(); renderAll(); toast('Excluída'); };
+}
+
+/* ===== Formulário de viagem ===== */
+function bindForm(){
+  $('#f-status').querySelectorAll('button').forEach(b=>b.onclick=()=>setStatus(b.dataset.st));
+  $('#f-notif').onclick=()=>{formNotif=!formNotif;syncNotifUI();};
+  ['f-corrida','f-hora','f-espera'].forEach(id=>$('#'+id).addEventListener('input',liveTotal));
+  $('#f-espera').addEventListener('input',()=>$('#h-espera').textContent=hhmm(num($('#f-espera').value)));
+  ['f-data','f-saida','f-notifmin'].forEach(id=>$('#'+id).addEventListener('input',notifPreview));
+  $('#save').onclick=saveViagem; $('#del').onclick=delViagem; $('#wpp').onclick=enviarWpp;
+}
+function setStatus(st){formStatus=st;$$('#f-status button').forEach(b=>{b.className='';if(b.dataset.st===st)b.classList.add('sel',st);});}
+function syncNotifUI(){$('#f-notif').classList.toggle('on',formNotif);$('#notif-when').style.display=formNotif?'grid':'none';notifPreview();}
+function liveTotal(){$('#f-total').textContent=money(num($('#f-corrida').value)+num($('#f-espera').value)/60*num($('#f-hora').value));}
+function notifPreview(){const p=$('#notif-preview');if(!formNotif){p.textContent='';return;}
+  const d=$('#f-data').value,t=$('#f-saida').value,m=Number($('#f-notifmin').value)||30;
+  if(!d||!t){p.textContent='defina data e saída';return;}
+  const w=new Date(new Date(d+'T'+t).getTime()-m*60000);
+  p.textContent='avisa '+w.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+function openForm(id){
+  const v=id?VIAGENS.find(x=>x.id===id):null;
+  $('#f-id').value=id||'';
+  $('#f-cliente').value=v?.cliente||'';$('#f-contato').value=v?.contato||'';
+  $('#f-origem').value=v?.origem||'';$('#f-destino').value=v?.destino||'';
+  $('#f-data').value=v?.data||new Date().toISOString().slice(0,10);
+  $('#f-saida').value=v?.saida||'';$('#f-retorno').value=v?.retorno||'';
+  $('#f-espera').value=v?.esperaMin||'';$('#h-espera').textContent=hhmm(v?.esperaMin||0);
+  $('#f-pessoas').value=v?.pessoas||'';
+  $('#f-corrida').value=v?String(v.valorCorrida).replace('.',','):'';
+  $('#f-hora').value=v?String(v.valorHoraEspera).replace('.',','):'';
+  $('#f-obs').value=v?.obs||'';$('#f-notifmin').value=v?.notifMin||30;
+  setStatus(v?.status||'aberto');formNotif=v?.notificar||false;syncNotifUI();
+  fillCatSelect(); if(v)$('#f-cat').value=v.categoriaId; liveTotal();
+  $('#del').style.display=id?'block':'none';
+  showView('form');
+}
+async function saveViagem(){
+  const cliente=$('#f-cliente').value.trim(); if(!cliente)return toast('Informe o cliente');
+  if(!$('#f-data').value||!$('#f-saida').value)return toast('Preencha data e horário de saída');
+  const id=$('#f-id').value||uid();
+  const rec={id,cliente,contato:$('#f-contato').value.trim(),categoriaId:$('#f-cat').value,
+    origem:$('#f-origem').value.trim(),destino:$('#f-destino').value.trim(),data:$('#f-data').value,
+    saida:$('#f-saida').value,retorno:$('#f-retorno').value,esperaMin:Number($('#f-espera').value)||0,
+    pessoas:Number($('#f-pessoas').value)||0,valorCorrida:num($('#f-corrida').value),valorHoraEspera:num($('#f-hora').value),
+    status:formStatus,notificar:formNotif,notifMin:Number($('#f-notifmin').value)||30,obs:$('#f-obs').value.trim()};
+  const i=VIAGENS.findIndex(v=>v.id===id); if(i>=0)VIAGENS[i]=rec; else VIAGENS.push(rec);
+  await saveViagens(); renderAll(); scheduleAll(); switchTab('agenda'); toast(i>=0?'Viagem atualizada':'Viagem agendada');
+}
+async function delViagem(){const id=$('#f-id').value;if(!id)return;
+  VIAGENS=VIAGENS.filter(v=>v.id!==id);await saveViagens();renderAll();switchTab('agenda');toast('Viagem excluída');}
+
+/* ===== Orçamento via WhatsApp ===== */
+function orcamentoTexto(){
+  const corrida=num($('#f-corrida').value), hora=num($('#f-hora').value), esp=Number($('#f-espera').value)||0;
+  const custoEsp=esp/60*hora, total=corrida+custoEsp;
+  const cat=CATS.find(c=>c.id===$('#f-cat').value);
+  const dataBR=$('#f-data').value?$('#f-data').value.split('-').reverse().join('/'):'';
+  const L=[]; L.push('🚗 *Orçamento — 22 Mobilidade*');
+  if($('#f-cliente').value.trim()) L.push('👤 '+$('#f-cliente').value.trim());
+  const linhaData=[dataBR,$('#f-saida').value?('saída '+$('#f-saida').value):''].filter(Boolean).join(' · ');
+  if(linhaData) L.push('🗓️ '+linhaData+($('#f-retorno').value?(' · retorno '+$('#f-retorno').value):''));
+  if($('#f-origem').value.trim()||$('#f-destino').value.trim())
+    L.push('📍 '+($('#f-origem').value.trim()||'—')+' → '+($('#f-destino').value.trim()||'—'));
+  const pes=Number($('#f-pessoas').value)||0; if(pes) L.push('👥 '+pes+(pes>1?' pessoas':' pessoa'));
+  if(esp) L.push('⏱️ Espera prevista: '+hhmm(esp));
+  L.push('———');
+  L.push('Corrida: '+money(corrida));
+  if(custoEsp>0) L.push('Espera ('+hhmm(esp)+'): '+money(custoEsp));
+  L.push('*Total: '+money(total)+'*');
+  return L.join('\n');
+}
+function enviarWpp(){
+  if(!$('#f-cliente').value.trim() && !$('#f-corrida').value) return toast('Preencha o orçamento primeiro');
+  let tel=$('#f-contato').value.replace(/\D/g,'');
+  if(tel && tel.length<=11) tel='55'+tel;
+  const url='https://wa.me/'+tel+'?text='+encodeURIComponent(orcamentoTexto());
+  window.open(url,'_blank');
+}
+
+/* ===== Seletor de mês/ano ===== */
+function openMonthPicker(){
+  const anos=[...VIAGENS,...LANCS].map(x=>parseInt((x.data||'').slice(0,4))).filter(Boolean);
+  const minY=Math.min(2023, fMonth.getFullYear(), ...(anos.length?anos:[2023]));
+  const maxY=Math.max(new Date().getFullYear()+1, fMonth.getFullYear());
+  let selY=fMonth.getFullYear(), selM=fMonth.getMonth();
+  const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const draw=()=>{
+    let yb=''; for(let y=maxY;y>=minY;y--) yb+=`<button class="yb ${y===selY?'sel':''}" data-y="${y}">${y}</button>`;
+    const mg=meses.map((m,i)=>`<button class="mb ${i===selM?'sel':''}" data-m="${i}">${m}</button>`).join('');
+    $('#sheet').innerHTML=`<h3>Escolher mês</h3><div class="yrow">${yb}</div><div class="mgrid">${mg}</div>`;
+    $$('#sheet .yb').forEach(b=>b.onclick=()=>{selY=+b.dataset.y;draw();});
+    $$('#sheet .mb').forEach(b=>b.onclick=()=>{ fMonth=new Date(selY,+b.dataset.m,1); renderFin(); closeSheet(); });
+  };
+  draw(); openSheet();
+}
+
+/* ===== Dados & backup ===== */
+function dadosSheet(){
+  const cloudTxt = cloudOn
+    ? 'Sincronização na nuvem <b style="color:var(--green)">ativa</b>. Seus lançamentos ficam salvos no Firebase e voltam em qualquer aparelho, mesmo se perder o celular.'
+    : 'Sincronização na nuvem <b style="color:var(--amber)">desativada</b> — os dados ficam só neste aparelho. Para ativar, cole o seu <b>firebaseConfig</b> (projeto interliga-app) no topo do arquivo, na seção <b>FB.config</b>.';
+  $('#sheet').innerHTML=`<h3>Dados & backup</h3>
+    <p style="color:var(--muted);font-size:13px;line-height:1.55;margin:-6px 0 16px">${cloudTxt}</p>
+    <button class="btn ghost" id="bk-exp">⬇️ Exportar backup (.json)</button>
+    <label class="btn ghost" style="display:block;text-align:center;margin-top:10px;cursor:pointer">⬆️ Importar backup (.json)
+      <input type="file" id="bk-imp" accept=".json,application/json" style="display:none"></label>
+    <p style="color:var(--faint);font-size:12px;margin-top:14px;line-height:1.5">Dica: mesmo com a nuvem ligada, exportar um backup de vez em quando e guardar no e-mail ou Drive é uma segurança extra.</p>`;
+  openSheet();
+  $('#bk-exp').onclick=exportBackup;
+  $('#bk-imp').onchange=e=>{ const f=e.target.files[0]; if(f) importBackup(f); };
+}
+function exportBackup(){
+  const data={app:'agenda-viagens',versao:1,exportadoEm:new Date().toISOString(),viagens:VIAGENS,lancamentos:LANCS,cats:CATS};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='backup-22mobilidade-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); a.remove(); toast('Backup exportado');
+}
+function importBackup(file){
+  const r=new FileReader();
+  r.onload=async()=>{ try{ const d=JSON.parse(r.result);
+      if(!d.viagens && !d.lancamentos && !d.cats) return toast('Arquivo não reconhecido');
+      if(!confirm('Substituir os dados atuais pelo backup? O que está neste aparelho agora será apagado.')) return;
+      VIAGENS=d.viagens||[]; LANCS=d.lancamentos||[]; CATS=(d.cats&&d.cats.length)?d.cats:CATS;
+      await saveViagens(); await saveLancs(); await saveCats();
+      closeSheet(); renderAll(); scheduleAll(); toast('Backup importado');
+    }catch(e){ toast('Falha ao ler o arquivo'); } };
+  r.readAsText(file,'utf-8');
+}
+
+/* ===== Notificações ===== */
+const timers=[];
+async function askNotif(){ if(!('Notification' in window))return toast('Notificação não suportada neste aparelho');
+  const p=await Notification.requestPermission(); refreshNotifPerm();
+  if(p==='granted'){toast('Notificações ativadas');scheduleAll();} else toast('Permissão negada'); }
+function refreshNotifPerm(){ const on=('Notification' in window)&&Notification.permission==='granted';
+  $('#bell').classList.toggle('on',on);$('#bell').classList.toggle('off',!on); }
+function scheduleAll(){ timers.forEach(clearTimeout);timers.length=0;
+  if(!('Notification' in window)||Notification.permission!=='granted')return; const now=Date.now();
+  VIAGENS.filter(v=>v.notificar&&v.data&&v.saida).forEach(v=>{
+    const fire=new Date(v.data+'T'+v.saida).getTime()-(v.notifMin||30)*60000, delay=fire-now;
+    if(delay>0&&delay<24*3600*1000) timers.push(setTimeout(()=>{
+      new Notification('Viagem de '+v.cliente,{body:`Saída ${v.saida} · ${v.origem||''} → ${v.destino||''}`}); },delay)); }); }
+
+/* ===== Navegação ===== */
+function bindNav(){ $$('.nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab)); }
+function showView(tab){ $$('.view').forEach(v=>v.classList.remove('active')); $('#v-'+tab).classList.add('active');
+  $('#fab').classList.toggle('show',tab==='agenda');
+  const titles={agenda:'Agenda de Viagens',fin:'Controle Financeiro',receb:'Recebimentos',cats:'Categorias',form:'Viagem'};
+  $('#brand-title').textContent=titles[tab]||'22 Mobilidade'; window.scrollTo({top:0}); }
+function switchTab(tab){ showView(tab); $$('.nav button').forEach(b=>b.classList.toggle('sel',b.dataset.tab===tab)); }
+function openSheet(){$('#scrim').classList.add('on');} function closeSheet(){$('#scrim').classList.remove('on');}
+$('#scrim').onclick=e=>{if(e.target.id==='scrim')closeSheet();};
+</script>
+</body>
+</html>

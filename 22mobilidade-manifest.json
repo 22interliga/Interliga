@@ -1,0 +1,25 @@
+{
+  "name": "22 Mobilidade — Agenda & Financeiro",
+  "short_name": "22 Mobilidade",
+  "description": "Agenda de viagens e controle financeiro da 22 Mobilidade",
+  "start_url": "agenda-viagens.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E1420",
+  "theme_color": "#0E1420",
+  "icons": [
+    {
+      "src": "22mobilidade-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "22mobilidade-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
