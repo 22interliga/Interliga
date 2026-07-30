@@ -1,48 +1,42 @@
 async function initFirebase() {
   try {
-    const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interliga-passageiro');
+    const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interliga-motorista');
     fb = _fb;
     authModRef = authMod;
     fbAppInstancia = app;
     db = _db;
-    authPassageiro = auth;
+    authMotorista = auth;
 
     firebaseReady = true;
-    console.log('✅ Firebase conectado');
+    console.log('Firebase conectado (motorista)');
 
-    // Expõe pro food.js usar — são módulos separados (sem import circular entre eles)
-    window.db = db;
-    window.fb = fb;
-    window.firebaseReady = true;
-
-    // Login real (e-mail/senha) — quando já tem sessão salva, entra direto sem pedir senha de novo.
-    // Quando não tem (ou deslogou), mostra a tela de login pra quem já escolheu ser passageiro.
-    authMod.onAuthStateChanged(authPassageiro, (user) => {
+    // Login real (e-mail/senha) — com sessão salva, entra direto. Sem sessão, pede login.
+    authMod.onAuthStateChanged(authMotorista, (user) => {
       if (user) {
-        _loginEmAndamento = false; // login confirmado — limpa a flag
-        meuPassageiroId = user.uid;
-        window.meuPassageiroId = user.uid;
-        verificarCadastroPassageiro();
+        meuMotoristaId = user.uid;
+        verificarCadastroMotorista();
       } else {
-        meuPassageiroId = null;
-        window.meuPassageiroId = null;
+        meuMotoristaId = null;
+        // Aguarda 800ms antes de redirecionar pro login
+        // Isso evita o loop quando o app volta de outra aba ou é reaberto
+        // (o Firebase demora um pouco pra restaurar a sessão)
         setTimeout(() => {
-          if (meuPassageiroId) return; // sessão restaurou, ignora
-          if (_loginEmAndamento) return; // login em andamento, não redireciona
-          if (localStorage.getItem('interliga_papel') === 'passageiro') {
-            const telaAtual = state.currentScreen;
-            if (telaAtual !== 'screen-login-passageiro' &&
-                telaAtual !== 'screen-cadastro-passageiro' &&
-                telaAtual !== 'screen-role-choice') {
-              go('screen-login-passageiro');
-            }
+          if (meuMotoristaId) return; // sessão restaurou nesse tempo, ignora
+          const telaAtual = document.querySelector('.screen[data-active="true"]')?.id;
+          const processandoLogin = document.getElementById('btn-fazer-login-motorista')?.disabled;
+          if (!processandoLogin &&
+              telaAtual !== 'screen-cadastro-motorista' &&
+              telaAtual !== 'screen-login-motorista') {
+            go('screen-login-motorista');
           }
         }, 800);
       }
     });
   } catch (e) {
-    console.warn('Firebase não disponível — app funciona em modo local:', e);
+    console.warn('Firebase nao disponivel:', e);
     firebaseReady = false;
     alert('⚠️ Erro ao conectar no Firebase:\n\n' + (e.message || e) + '\n\nManda esse texto pro suporte.');
+    meuMotoristaId = obterMotoristaIdReserva();
+    go('screen-home'); // modo totalmente offline — libera a Home sem cadastro, já que não tem como verificar nada
   }
 }
