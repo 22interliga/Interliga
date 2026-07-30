@@ -3,6 +3,7 @@
 // motorista.js — única fonte de verdade, isolado do passageiro
 // ═══════════════════════════════════════
 
+import { carregarFirebase } from './firebase-config.js';
 let db = null;
 let firebaseReady = false;
 let fb = {};
