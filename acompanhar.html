@@ -50,7 +50,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
+import { firebaseConfig } from './firebase-config.js';
 const corridaId = new URLSearchParams(location.search).get('id');
 if (!corridaId) {
   document.getElementById('info-panel').innerHTML = '<div class="erro">❌ Link inválido — ID da corrida não encontrado.</div>';
@@ -58,14 +58,7 @@ if (!corridaId) {
   throw new Error('sem id');
 }
 
-const app = initializeApp({
-  apiKey: "AIzaSyAAwR-TwQlWIgR4hBRjWtjfm_qFSkultUY",
-  authDomain: "interliga-app.firebaseapp.com",
-  projectId: "interliga-app",
-  storageBucket: "interliga-app.firebasestorage.app",
-  messagingSenderId: "913895237568",
-  appId: "1:913895237568:web:faad95e8af089150e54a25",
-});
+const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // Mapa
