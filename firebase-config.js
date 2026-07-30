@@ -1,42 +1,28 @@
-async function initFirebase() {
-  try {
-    const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interliga-motorista');
-    fb = _fb;
-    authModRef = authMod;
-    fbAppInstancia = app;
-    db = _db;
-    authMotorista = auth;
+// ═══════════════════════════════════════
+// INTERLIGA — Configuração central do Firebase
+// firebase-config.js — ÚNICO lugar pra trocar projeto ou versão do SDK.
+// ═══════════════════════════════════════
 
-    firebaseReady = true;
-    console.log('Firebase conectado (motorista)');
+export const FIREBASE_SDK = '10.12.0';
 
-    // Login real (e-mail/senha) — com sessão salva, entra direto. Sem sessão, pede login.
-    authMod.onAuthStateChanged(authMotorista, (user) => {
-      if (user) {
-        meuMotoristaId = user.uid;
-        verificarCadastroMotorista();
-      } else {
-        meuMotoristaId = null;
-        // Aguarda 800ms antes de redirecionar pro login
-        // Isso evita o loop quando o app volta de outra aba ou é reaberto
-        // (o Firebase demora um pouco pra restaurar a sessão)
-        setTimeout(() => {
-          if (meuMotoristaId) return; // sessão restaurou nesse tempo, ignora
-          const telaAtual = document.querySelector('.screen[data-active="true"]')?.id;
-          const processandoLogin = document.getElementById('btn-fazer-login-motorista')?.disabled;
-          if (!processandoLogin &&
-              telaAtual !== 'screen-cadastro-motorista' &&
-              telaAtual !== 'screen-login-motorista') {
-            go('screen-login-motorista');
-          }
-        }, 800);
-      }
-    });
-  } catch (e) {
-    console.warn('Firebase nao disponivel:', e);
-    firebaseReady = false;
-    alert('⚠️ Erro ao conectar no Firebase:\n\n' + (e.message || e) + '\n\nManda esse texto pro suporte.');
-    meuMotoristaId = obterMotoristaIdReserva();
-    go('screen-home'); // modo totalmente offline — libera a Home sem cadastro, já que não tem como verificar nada
-  }
+export const firebaseConfig = {
+  apiKey: "AIzaSyAAwR-TwQlWIgR4hBRjWtjfm_qFSkultUY",
+  authDomain: "interliga-app.firebaseapp.com",
+  projectId: "interliga-app",
+  storageBucket: "interliga-app.firebasestorage.app",
+  messagingSenderId: "913895237568",
+  appId: "1:913895237568:web:faad95e8af089150e54a25",
+};
+
+export async function carregarFirebase(nomeApp) {
+  const base = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK}`;
+  const { initializeApp } = await import(`${base}/firebase-app.js`);
+  const fb = await import(`${base}/firebase-firestore.js`);
+  const authMod = await import(`${base}/firebase-auth.js`);
+
+  const app = initializeApp(firebaseConfig, nomeApp);
+  const db = fb.getFirestore(app);
+  const auth = authMod.getAuth(app);
+
+  return { app, db, auth, fb, authMod };
 }
