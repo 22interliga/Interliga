@@ -3,6 +3,7 @@
 // app.js — única fonte de verdade, sem duplicação
 // ═══════════════════════════════════════
 
+import { carregarFirebase } from './firebase-config.js';
 // ─────────────────────────────────────
 // FIREBASE — carregado dinamicamente, nunca bloqueia o app se falhar
 // ─────────────────────────────────────
