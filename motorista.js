@@ -30,24 +30,12 @@ function esperarFirebasePronto(timeoutMs = 8000) {
 
 async function initFirebase() {
   try {
-    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-    const firestoreMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const authMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    fb = firestoreMod;
+const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interliga-motorista');
+    fb = _fb;
     authModRef = authMod;
-    const firebaseConfig = {
-      apiKey: "AIzaSyAAwR-TwQlWIgR4hBRjWtjfm_qFSkultUY",
-      authDomain: "interliga-app.firebaseapp.com",
-      projectId: "interliga-app",
-      storageBucket: "interliga-app.firebasestorage.app",
-      messagingSenderId: "913895237568",
-      appId: "1:913895237568:web:faad95e8af089150e54a25",
-    };
-    const fbApp = initializeApp(firebaseConfig, 'interliga-motorista');
-    fbAppInstancia = fbApp;
-    db = fb.getFirestore(fbApp);
-    authMotorista = authMod.getAuth(fbApp);
-
+    fbAppInstancia = app;
+    db = _db;
+    authMotorista = auth;
     firebaseReady = true;
     console.log('Firebase conectado (motorista)');
 
