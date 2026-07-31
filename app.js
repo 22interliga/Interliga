@@ -1581,7 +1581,27 @@ function renderChatMessage(texto, tipo, audioDataUrl = null) {
   }
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
-  if (tipo === 'them' || tipo === 'sys') tocarSomNotificacaoChat();
+  if (tipo === 'them' || tipo === 'sys') {
+    tocarSomNotificacaoChat();
+    // Mostra badge no botão de chat se o painel estiver fechado
+    const chatPanel = document.getElementById('chat-panel');
+    if (chatPanel?.hidden) {
+      const btnChat = document.getElementById('btn-open-chat');
+      if (btnChat) {
+        btnChat.style.position = 'relative';
+        let badge = document.getElementById('chat-badge-pax');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.id = 'chat-badge-pax';
+          badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#E8002D;color:white;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;';
+          badge.textContent = '1';
+          btnChat.appendChild(badge);
+        } else {
+          badge.textContent = String(Number(badge.textContent || 0) + 1);
+        }
+      }
+    }
+  }
 }
 
 async function enviarMensagemChat(texto) {
@@ -2085,6 +2105,9 @@ document.getElementById('btn-tentar-cadastro-novamente')?.addEventListener('clic
 document.getElementById('btn-open-chat')?.addEventListener('click', () => {
   document.getElementById('chat-panel').hidden = false;
   document.getElementById('chat-input')?.focus();
+  // Limpa badge de mensagem nova
+  const badge = document.getElementById('chat-badge-pax');
+  if (badge) badge.remove();
 });
 document.getElementById('btn-close-chat')?.addEventListener('click', () => {
   document.getElementById('chat-panel').hidden = true;
