@@ -1673,21 +1673,60 @@ let timeoutGravacaoChatMotorista = null;
 
 async function alternarGravacaoAudioChatMotorista() {
   const btnMic = document.getElementById('btn-mic-chat-driver');
+
+  // Se tem gravação nativa disponível (APK Android), usa ela em vez do getUserMedia
+  // que falha em WebView MIUI/Xiaomi com NotReadableError
+  if (window.AndroidNative?.iniciarGravacaoNativa) {
+    if (gravandoAudioChatMotorista) {
+      window.AndroidNative.pararGravacaoNativa();
+      return;
+    }
+    // Registra callbacks que o Java vai chamar quando terminar
+    window._micIniciou = () => {
+      gravandoAudioChatMotorista = true;
+      btnMic?.classList.add('is-recording');
+      showToast('🎙️ Gravando... toque de novo para enviar');
+      timeoutGravacaoChatMotorista = setTimeout(() => {
+        if (gravandoAudioChatMotorista) window.AndroidNative.pararGravacaoNativa();
+      }, 30000);
+    };
+    window._micDados = (base64) => {
+      clearTimeout(timeoutGravacaoChatMotorista);
+      gravandoAudioChatMotorista = false;
+      btnMic?.classList.remove('is-recording');
+      if (base64 && base64.length > 100) {
+        enviarAudioChatMotorista(base64);
+      } else {
+        showToast('⚠️ Gravação vazia, tente de novo');
+      }
+    };
+    window._micErro = (msg) => {
+      gravandoAudioChatMotorista = false;
+      btnMic?.classList.remove('is-recording');
+      showToast('⚠️ Microfone: ' + (msg || 'erro desconhecido'));
+    };
+    window.AndroidNative.iniciarGravacaoNativa();
+    return;
+  }
+
+  // Fallback: getUserMedia (funciona no navegador e em alguns WebViews)
   if (gravandoAudioChatMotorista) {
     gravadorAudioChatMotorista?.stop();
     return;
   }
-  // No APK, pede permissão de microfone via ponte nativa antes de tentar
-  // getUserMedia — o WebView às vezes bloqueia mesmo com permissão concedida
-  // nas configurações do celular, se não for solicitada pela ponte Java.
-  if (window.AndroidNative?.pedirPermissaoMicrofone) {
+  if(window.AndroidNative?.pedirPermissaoMicrofone){
     window.AndroidNative.pedirPermissaoMicrofone();
-    await new Promise(r => setTimeout(r, 500)); // aguarda o sistema processar
+    await new Promise(r=>setTimeout(r,500));
   }
   try {
-    showToast('🎙️ Acessando microfone...');
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    showToast('🎙️ Microfone OK — gravando...');
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 16000 }
+      });
+    } catch (e1) {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
     const opcoes = { audioBitsPerSecond: 24000 };
     if (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) {
       opcoes.mimeType = 'audio/webm;codecs=opus';
