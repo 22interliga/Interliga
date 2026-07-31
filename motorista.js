@@ -666,13 +666,36 @@ function pararEscutaCorridas() {
 // VOZ — avisos falados em voz alta, pro motorista não precisar ficar olhando a tela
 // ─────────────────────────────────────
 function falarEmVoz(texto) {
+  // speechSynthesis não funciona em muitos WebViews Android — usamos
+  // AudioContext como fallback garantido, tocando um padrão sonoro
+  // diferente dependendo do tipo de mensagem (cancelamento vs nova corrida).
   try {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel(); // não deixa acumular falas em fila
-    const utter = new SpeechSynthesisUtterance(texto);
-    utter.lang = 'pt-BR';
-    utter.rate = 1;
-    window.speechSynthesis.speak(utter);
+    const ctx = getAudioCtx();
+    const ehCancelamento = texto.toLowerCase().includes('cancel') || texto.toLowerCase().includes('passageiro cancelou');
+    // Cancelamento: tom descendente (alerta negativo)
+    // Nova corrida: tom ascendente (alerta positivo, já definido em tocarSomNovaCorrida)
+    const notas = ehCancelamento ? [880, 660, 440] : [440, 660, 880];
+    let t = ctx.currentTime;
+    notas.forEach(freq => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = ehCancelamento ? 'sawtooth' : 'sine';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.6, t + 0.05);
+      g.gain.linearRampToValueAtTime(0, t + 0.3);
+      o.start(t); o.stop(t + 0.35);
+      t += 0.38;
+    });
+    // Tenta o speechSynthesis também — se funcionar no celular, melhor ainda
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(texto);
+      utter.lang = 'pt-BR';
+      utter.rate = 1;
+      window.speechSynthesis.speak(utter);
+    }
   } catch (e) { console.warn('[motorista] erro ao falar em voz:', e); }
 }
 
