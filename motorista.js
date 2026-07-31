@@ -343,9 +343,14 @@ document.getElementById('online-toggle')?.addEventListener('click', () => {
     iniciarDisponibilidade();
     atualizarGridDemanda();
     iniciarListenerEntregas();
-    // Se estiver rodando dentro do APK (não no navegador comum), liga o
-    // serviço nativo que mantém o rastreamento funcionando minimizado.
-    if (window.AndroidNative?.ativarSegundoPlano) window.AndroidNative.ativarSegundoPlano();
+    if (window.AndroidNative?.ativarSegundoPlano) {
+      window.AndroidNative.ativarSegundoPlano();
+      setTimeout(() => {
+        const mic = !!navigator.mediaDevices?.getUserMedia;
+        const nativo = !!window.AndroidNative;
+        showToast(`APK: ${nativo?'✅':'❌'} | Mic: ${mic?'✅':'❌'} | Bolha: ativando...`);
+      }, 1500);
+    }
   } else {
     showToast('🔴 Você está offline');
     pararEscutaCorridas();
@@ -1168,26 +1173,46 @@ function escutarCancelamentoCorrida() {
   if (!firebaseReady || !db || !state.corridaAtualId || cancelamentoListenerUnsub) return;
   if (String(state.corridaAtualId).startsWith('local-')) return;
 
-  cancelamentoListenerUnsub = fb.onSnapshot(fb.doc(db, 'corridas', state.corridaAtualId), (snap) => {
+  const corridaId = state.corridaAtualId;
+
+  cancelamentoListenerUnsub = fb.onSnapshot(fb.doc(db, 'corridas', corridaId), (snap) => {
     const data = snap.data();
     if (!data) return;
     if (data.status === 'cancelada') {
-      pararEscutaCancelamento();
-      pararEscutaChat();
-      pararEscutaRota();
-      pararBroadcastPosicao();
-      marcadorMotoristaMap = null;
-      sequenciaRotaMotorista = [];
-      indiceRotaAtualMotorista = 0;
-      state.corridaAtual = null;
-      state.corridaAtualId = null;
-      state.emCorridaAtiva = false;
-      falarEmVoz('Atenção! O passageiro cancelou a corrida.');
-      showToast('❌ Passageiro cancelou a corrida');
-      if (state.online) { iniciarDisponibilidade(); iniciarEscutaCorridas(); } // volta a ficar disponível e escutar novas ofertas
-      go('screen-home');
+      reagirAoCancelamentoPeloPassageiro();
     }
   }, (erro) => console.error('[motorista] erro no listener de cancelamento:', erro));
+
+  // Fallback: verifica o status a cada 10 segundos caso o onSnapshot
+  // não chegue (ex: app voltando do segundo plano, WebView suspenso)
+  if (state._cancelamentoFallbackInterval) clearInterval(state._cancelamentoFallbackInterval);
+  state._cancelamentoFallbackInterval = setInterval(async () => {
+    if (!state.corridaAtualId || !firebaseReady || !db) return;
+    try {
+      const snap = await fb.getDoc(fb.doc(db, 'corridas', state.corridaAtualId));
+      if (snap.exists() && snap.data()?.status === 'cancelada') {
+        reagirAoCancelamentoPeloPassageiro();
+      }
+    } catch (e) {}
+  }, 10000);
+}
+
+function reagirAoCancelamentoPeloPassageiro() {
+  if (state._cancelamentoFallbackInterval) { clearInterval(state._cancelamentoFallbackInterval); state._cancelamentoFallbackInterval = null; }
+  pararEscutaCancelamento();
+  pararEscutaChat();
+  pararEscutaRota();
+  pararBroadcastPosicao();
+  marcadorMotoristaMap = null;
+  sequenciaRotaMotorista = [];
+  indiceRotaAtualMotorista = 0;
+  state.corridaAtual = null;
+  state.corridaAtualId = null;
+  state.emCorridaAtiva = false;
+  falarEmVoz('Atenção! O passageiro cancelou a corrida.');
+  showToast('❌ Passageiro cancelou a corrida');
+  if (state.online) { iniciarDisponibilidade(); iniciarEscutaCorridas(); }
+  go('screen-home');
 }
 
 function pararEscutaCancelamento() {
@@ -1650,10 +1675,17 @@ async function alternarGravacaoAudioChatMotorista() {
   }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const opcoes = { audioBitsPerSecond: 24000 };
-    if (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) {
-      opcoes.mimeType = 'audio/webm;codecs=opus';
+    // WebView Android não suporta audio/webm em versões antigas —
+    // testa os formatos em ordem de compatibilidade
+    const opcoes = {};
+    const formatos = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
+    for (const fmt of formatos) {
+      if (window.MediaRecorder?.isTypeSupported?.(fmt)) {
+        opcoes.mimeType = fmt;
+        break;
+      }
     }
+    opcoes.audioBitsPerSecond = 24000;
     gravadorAudioChatMotorista = new MediaRecorder(stream, opcoes);
     pedacosAudioChatMotorista = [];
     gravadorAudioChatMotorista.ondataavailable = (e) => { if (e.data && e.data.size > 0) pedacosAudioChatMotorista.push(e.data); };
