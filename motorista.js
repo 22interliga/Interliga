@@ -788,13 +788,14 @@ function notificarNovaCorrida(corrida) {
 
   showToast('🔔 Nova corrida disponível!');
 
-  // Navega automaticamente pra tela de corridas se não estiver lá já
+  // Navega pra tela de corridas — delay de 1.5s pra dar tempo do som tocar
+  // e o motorista perceber antes da tela mudar
   const telaAtual = document.querySelector('.screen[data-active="true"]')?.id;
   if (telaAtual !== 'screen-request') {
     setTimeout(() => {
       exibirCorridaRecebida(corrida);
       go('screen-request');
-    }, 300);
+    }, 1500);
   } else {
     exibirCorridaRecebida(corrida);
   }
@@ -934,9 +935,11 @@ function recusarCorrida() {
   state.corridaAtualId = null;
   state.emCorridaAtiva = false;
 
-  // Volta a escutar novas corridas após recusar
+  // Para o listener atual e reinicia pra garantir que volta a receber novas corridas
+  pararEscutaCorridas();
   if (state.online) {
-    setTimeout(() => iniciarEscutaCorridas(), 1000);
+    iniciarDisponibilidade();
+    setTimeout(() => iniciarEscutaCorridas(), 1500);
   }
 
   go('screen-home');
