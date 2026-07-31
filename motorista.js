@@ -281,19 +281,27 @@ function getAudioCtx() {
   if (!_audioCtx || _audioCtx.state === 'closed') {
     _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
-  if (_audioCtx.state === 'suspended') {
-    _audioCtx.resume();
-  }
   return _audioCtx;
 }
 
-// Inicia o contexto de áudio na primeira interação do usuário
-document.addEventListener('click', () => { try { getAudioCtx(); } catch(e) {} }, { once: false });
-document.addEventListener('touchstart', () => { try { getAudioCtx(); } catch(e) {} }, { once: false });
+// Garante que o AudioContext está ativo antes de tocar qualquer som.
+// No Android WebView, o contexto pode ficar suspended mesmo depois de
+// uma interação — por isso forçamos o resume() sempre antes de usar.
+async function garantirAudioAtivo() {
+  const ctx = getAudioCtx();
+  if (ctx.state === 'suspended') {
+    try { await ctx.resume(); } catch(e) {}
+  }
+  return ctx;
+}
 
-function tocarSomNovaCorrida() {
+// Inicia o contexto de áudio na primeira interação do usuário
+document.addEventListener('click', () => { try { getAudioCtx().resume(); } catch(e) {} }, { once: false });
+document.addEventListener('touchstart', () => { try { getAudioCtx().resume(); } catch(e) {} }, { once: false });
+
+async function tocarSomNovaCorrida() {
   try {
-    const ctx = getAudioCtx();
+    const ctx = await garantirAudioAtivo();
     const notas = [880, 1100, 880, 1100, 880];
     let t = ctx.currentTime;
     notas.forEach(freq => {
@@ -665,15 +673,13 @@ function pararEscutaCorridas() {
 // ─────────────────────────────────────
 // VOZ — avisos falados em voz alta, pro motorista não precisar ficar olhando a tela
 // ─────────────────────────────────────
-function falarEmVoz(texto) {
+async function falarEmVoz(texto) {
   // speechSynthesis não funciona em muitos WebViews Android — usamos
   // AudioContext como fallback garantido, tocando um padrão sonoro
   // diferente dependendo do tipo de mensagem (cancelamento vs nova corrida).
   try {
-    const ctx = getAudioCtx();
+    const ctx = await garantirAudioAtivo();
     const ehCancelamento = texto.toLowerCase().includes('cancel') || texto.toLowerCase().includes('passageiro cancelou');
-    // Cancelamento: tom descendente (alerta negativo)
-    // Nova corrida: tom ascendente (alerta positivo, já definido em tocarSomNovaCorrida)
     const notas = ehCancelamento ? [880, 660, 440] : [440, 660, 880];
     let t = ctx.currentTime;
     notas.forEach(freq => {
