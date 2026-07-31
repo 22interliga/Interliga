@@ -1686,6 +1686,7 @@ async function alternarGravacaoAudioChatMotorista() {
       }
     }
     opcoes.audioBitsPerSecond = 24000;
+    showToast('🎙️ Formato: ' + (opcoes.mimeType || 'padrão'));
     gravadorAudioChatMotorista = new MediaRecorder(stream, opcoes);
     pedacosAudioChatMotorista = [];
     gravadorAudioChatMotorista.ondataavailable = (e) => { if (e.data && e.data.size > 0) pedacosAudioChatMotorista.push(e.data); };
