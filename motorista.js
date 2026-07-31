@@ -300,6 +300,12 @@ document.addEventListener('click', () => { try { getAudioCtx().resume(); } catch
 document.addEventListener('touchstart', () => { try { getAudioCtx().resume(); } catch(e) {} }, { once: false });
 
 async function tocarSomNovaCorrida() {
+  // No APK Android, usa notificação nativa (som/vibração garantidos mesmo
+  // com o app em segundo plano). No navegador, usa AudioContext.
+  if (window.AndroidNative?.tocarAlerta) {
+    window.AndroidNative.tocarAlerta('nova_corrida');
+    return;
+  }
   try {
     const ctx = await garantirAudioAtivo();
     const notas = [880, 1100, 880, 1100, 880];
@@ -308,13 +314,11 @@ async function tocarSomNovaCorrida() {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
-      o.type = 'sine';
-      o.frequency.value = freq;
+      o.type = 'sine'; o.frequency.value = freq;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.5, t + 0.05);
       g.gain.linearRampToValueAtTime(0, t + 0.2);
-      o.start(t); o.stop(t + 0.22);
-      t += 0.25;
+      o.start(t); o.stop(t + 0.22); t += 0.25;
     });
   } catch (e) { console.warn('[som] erro:', e); }
 }
@@ -674,9 +678,11 @@ function pararEscutaCorridas() {
 // VOZ — avisos falados em voz alta, pro motorista não precisar ficar olhando a tela
 // ─────────────────────────────────────
 async function falarEmVoz(texto) {
-  // speechSynthesis não funciona em muitos WebViews Android — usamos
-  // AudioContext como fallback garantido, tocando um padrão sonoro
-  // diferente dependendo do tipo de mensagem (cancelamento vs nova corrida).
+  // No APK Android, usa notificação nativa com som/vibração garantidos.
+  if (window.AndroidNative?.tocarAlerta) {
+    window.AndroidNative.tocarAlerta(texto);
+    return;
+  }
   try {
     const ctx = await garantirAudioAtivo();
     const ehCancelamento = texto.toLowerCase().includes('cancel') || texto.toLowerCase().includes('passageiro cancelou');
@@ -686,20 +692,16 @@ async function falarEmVoz(texto) {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
-      o.type = ehCancelamento ? 'sawtooth' : 'sine';
-      o.frequency.value = freq;
+      o.type = ehCancelamento ? 'sawtooth' : 'sine'; o.frequency.value = freq;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.6, t + 0.05);
       g.gain.linearRampToValueAtTime(0, t + 0.3);
-      o.start(t); o.stop(t + 0.35);
-      t += 0.38;
+      o.start(t); o.stop(t + 0.35); t += 0.38;
     });
-    // Tenta o speechSynthesis também — se funcionar no celular, melhor ainda
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(texto);
-      utter.lang = 'pt-BR';
-      utter.rate = 1;
+      utter.lang = 'pt-BR'; utter.rate = 1;
       window.speechSynthesis.speak(utter);
     }
   } catch (e) { console.warn('[motorista] erro ao falar em voz:', e); }
