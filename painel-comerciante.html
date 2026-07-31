@@ -382,7 +382,7 @@ function processarNotificacoes(pedidos) {
   }
 }
 
-function abrirNotificacoes() {
+window.abrirNotificacoes = function() {
   const painel = document.getElementById('painel-notif');
   painel.style.display = painel.style.display === 'none' ? 'block' : 'none';
 
