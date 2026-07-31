@@ -208,6 +208,7 @@ const state = {
   corridaAtualId: null,
   corridaAtual: null,
   countdownInterval: null,
+  corridaChegouEm: null,
   countdownSegundos: 15,
   corridasListenerUnsub: null,
   chatListenerUnsub: null,
@@ -773,12 +774,13 @@ function notificarNovaCorrida(corrida) {
   console.log('[motorista] Nova corrida recebida:', corrida);
   state.corridaAtual = corrida;
   state.corridaAtualId = corrida.id;
+  // Guarda o momento exato que a corrida chegou
+  state.corridaChegouEm = Date.now();
 
   tocarSomNovaCorrida();
   falarEmVoz('Nova corrida disponível!');
   escutarCancelamentoOferta(corrida.id);
 
-  // Banner na home
   const banner = document.getElementById('new-ride-banner');
   const detail = document.getElementById('new-ride-detail');
   if (banner) {
@@ -788,8 +790,7 @@ function notificarNovaCorrida(corrida) {
 
   showToast('🔔 Nova corrida disponível!');
 
-  // Navega pra tela de corridas — delay de 1.5s pra dar tempo do som tocar
-  // e o motorista perceber antes da tela mudar
+  // Navega pra tela de corridas com delay de 1.5s
   const telaAtual = document.querySelector('.screen[data-active="true"]')?.id;
   if (telaAtual !== 'screen-request') {
     setTimeout(() => {
@@ -867,13 +868,19 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 function iniciarCountdown() {
-  state.countdownSegundos = 15;
+  // Desconta o tempo que já passou desde que a corrida chegou
+  // (evita que o timer comece do zero quando o motorista abre o app)
+  const tempoPassado = state.corridaChegouEm
+    ? Math.floor((Date.now() - state.corridaChegouEm) / 1000)
+    : 0;
+  state.countdownSegundos = Math.max(1, 15 - tempoPassado);
+
   const numEl = document.getElementById('countdown-num');
   const fgEl = document.getElementById('countdown-fg');
   if (numEl) numEl.textContent = state.countdownSegundos;
-  if (fgEl) fgEl.style.strokeDashoffset = 0;
+  if (fgEl) fgEl.style.strokeDashoffset = (15 - state.countdownSegundos) * (100.5 / 15);
 
-  // Toca o som de chamada repetidamente enquanto aguarda resposta (como uma campainha)
+  // Toca o som de chamada repetidamente enquanto aguarda resposta
   tocarSomNovaCorrida();
   clearInterval(state.somRepeticaoInterval);
   state.somRepeticaoInterval = setInterval(() => tocarSomNovaCorrida(), 2000);
