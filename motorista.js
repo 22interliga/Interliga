@@ -340,6 +340,13 @@ function onEnterHome() {
   initHomeMapDriver();
 }
 
+// Chamado pelo MonitorCorridasService quando detecta nova corrida em segundo plano
+window._novaCorridaSegundoPlano = function(corridaId) {
+  // Se o app está em primeiro plano, o onSnapshot normal já vai capturar
+  // Se está em segundo plano, toca o alerta e o usuário vê a notificação nativa
+  tocarSomNovaCorrida();
+};
+
 document.getElementById('online-toggle')?.addEventListener('click', () => {
   state.online = !state.online;
   const btn = document.getElementById('online-toggle');
@@ -355,11 +362,20 @@ document.getElementById('online-toggle')?.addEventListener('click', () => {
     if (window.AndroidNative?.ativarSegundoPlano) {
       window.AndroidNative.ativarSegundoPlano();
     }
+    // Inicia o monitor de corridas em segundo plano passando o token de auth
+    if (window.AndroidNative?.iniciarMonitorSegundoPlano && authMotorista) {
+      try {
+        authModRef.getIdToken(authMotorista.currentUser, false).then(token => {
+          window.AndroidNative.iniciarMonitorSegundoPlano(meuMotoristaId || '', token);
+        }).catch(() => {});
+      } catch(e) {}
+    }
   } else {
     showToast('🔴 Você está offline');
     pararEscutaCorridas();
     pararDisponibilidade();
     if (window.AndroidNative?.desativarSegundoPlano) window.AndroidNative.desativarSegundoPlano();
+    if (window.AndroidNative?.pararMonitorSegundoPlano) window.AndroidNative.pararMonitorSegundoPlano();
   }
 });
 
