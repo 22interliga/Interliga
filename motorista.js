@@ -784,6 +784,17 @@ function notificarNovaCorrida(corrida) {
   }
 
   showToast('🔔 Nova corrida disponível!');
+
+  // Navega automaticamente pra tela de corridas se não estiver lá já
+  const telaAtual = document.querySelector('.screen[data-active="true"]')?.id;
+  if (telaAtual !== 'screen-request') {
+    setTimeout(() => {
+      exibirCorridaRecebida(corrida);
+      go('screen-request');
+    }, 300);
+  } else {
+    exibirCorridaRecebida(corrida);
+  }
 }
 
 // ─────────────────────────────────────
