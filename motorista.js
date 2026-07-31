@@ -304,21 +304,30 @@ async function tocarSomNovaCorrida() {
   // com o app em segundo plano). No navegador, usa AudioContext.
   if (window.AndroidNative?.tocarAlerta) {
     window.AndroidNative.tocarAlerta('nova_corrida');
-    return;
   }
+  // Toca também via AudioContext pra dar feedback imediato na tela
+  // (a notificação nativa pode ter delay de alguns ms)
   try {
     const ctx = await garantirAudioAtivo();
-    const notas = [880, 1100, 880, 1100, 880];
-    let t = ctx.currentTime;
-    notas.forEach(freq => {
+    // Sequência musical ascendente — mais reconhecível que um bip simples
+    const sequencia = [
+      { freq: 523, dur: 0.12, delay: 0.00 },  // Dó
+      { freq: 659, dur: 0.12, delay: 0.14 },  // Mi
+      { freq: 784, dur: 0.12, delay: 0.28 },  // Sol
+      { freq: 1047, dur: 0.25, delay: 0.42 }, // Dó alto
+    ];
+    const t0 = ctx.currentTime;
+    sequencia.forEach(({ freq, dur, delay }) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
-      o.type = 'sine'; o.frequency.value = freq;
+      o.type = 'sine';
+      o.frequency.value = freq;
+      const t = t0 + delay;
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.5, t + 0.05);
-      g.gain.linearRampToValueAtTime(0, t + 0.2);
-      o.start(t); o.stop(t + 0.22); t += 0.25;
+      g.gain.linearRampToValueAtTime(0.4, t + 0.03);
+      g.gain.linearRampToValueAtTime(0, t + dur);
+      o.start(t); o.stop(t + dur + 0.05);
     });
   } catch (e) { console.warn('[som] erro:', e); }
 }
@@ -345,11 +354,6 @@ document.getElementById('online-toggle')?.addEventListener('click', () => {
     iniciarListenerEntregas();
     if (window.AndroidNative?.ativarSegundoPlano) {
       window.AndroidNative.ativarSegundoPlano();
-      setTimeout(() => {
-        const mic = !!navigator.mediaDevices?.getUserMedia;
-        const nativo = !!window.AndroidNative;
-        showToast(`APK: ${nativo?'✅':'❌'} | Mic: ${mic?'✅':'❌'} | Bolha: ativando...`);
-      }, 1500);
     }
   } else {
     showToast('🔴 Você está offline');
@@ -1675,18 +1679,10 @@ async function alternarGravacaoAudioChatMotorista() {
   }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    // WebView Android não suporta audio/webm em versões antigas —
-    // testa os formatos em ordem de compatibilidade
-    const opcoes = {};
-    const formatos = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
-    for (const fmt of formatos) {
-      if (window.MediaRecorder?.isTypeSupported?.(fmt)) {
-        opcoes.mimeType = fmt;
-        break;
-      }
+    const opcoes = { audioBitsPerSecond: 24000 };
+    if (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) {
+      opcoes.mimeType = 'audio/webm;codecs=opus';
     }
-    opcoes.audioBitsPerSecond = 24000;
-    showToast('🎙️ Formato: ' + (opcoes.mimeType || 'padrão'));
     gravadorAudioChatMotorista = new MediaRecorder(stream, opcoes);
     pedacosAudioChatMotorista = [];
     gravadorAudioChatMotorista.ondataavailable = (e) => { if (e.data && e.data.size > 0) pedacosAudioChatMotorista.push(e.data); };
