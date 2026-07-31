@@ -1677,6 +1677,13 @@ async function alternarGravacaoAudioChatMotorista() {
     gravadorAudioChatMotorista?.stop();
     return;
   }
+  // No APK, pede permissão de microfone via ponte nativa antes de tentar
+  // getUserMedia — o WebView às vezes bloqueia mesmo com permissão concedida
+  // nas configurações do celular, se não for solicitada pela ponte Java.
+  if (window.AndroidNative?.pedirPermissaoMicrofone) {
+    window.AndroidNative.pedirPermissaoMicrofone();
+    await new Promise(r => setTimeout(r, 500)); // aguarda o sistema processar
+  }
   try {
     showToast('🎙️ Acessando microfone...');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
