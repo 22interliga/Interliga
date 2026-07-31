@@ -1277,22 +1277,42 @@ function ouvirAceiteCorrida(corridaId) {
       if (state.chatListenerUnsub) { state.chatListenerUnsub(); state.chatListenerUnsub = null; }
       pararEscutaPosicaoMotorista();
       localStorage.removeItem('interliga_corrida_ativa');
-
       atualizarStatusHistoricoLocal('finalizada', {
         preco: data.preco,
         motoristaNome: data.motoristaNome || 'Motorista',
         motoristaVeiculo: data.motoristaVeiculo,
         motoristaPlaca: data.motoristaPlaca,
       });
-
-      // Verifica e aplica multa pendente do passageiro na carteira do motorista
       verificarEAplicarMulta(data.passageiroId, data.motoristaId, data.preco);
-
       showToast('✅ Corrida finalizada! Obrigado por viajar com a Interliga.');
-      // Sempre vai pra avaliação — com delay pra garantir que o toast aparece antes
       setTimeout(() => abrirTelaAvaliarMotorista(data.motoristaId, data.motoristaNome), 500);
     }
-  }, (erro) => {
+    if (data.status === 'cancelada' && data.canceladoPor === 'motorista') {
+      console.log('[passageiro] corrida cancelada pelo motorista.');
+      if (state.corridaListenerUnsub) { state.corridaListenerUnsub(); state.corridaListenerUnsub = null; }
+      if (state.chatListenerUnsub) { state.chatListenerUnsub(); state.chatListenerUnsub = null; }
+      pararEscutaPosicaoMotorista();
+      pararFilaWatchdog();
+      localStorage.removeItem('interliga_corrida_ativa');
+      state.corridaId = null;
+      atualizarStatusHistoricoLocal('cancelada');
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notas = [880, 660, 440];
+        let t = ctx.currentTime;
+        notas.forEach(freq => {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sawtooth'; o.frequency.value = freq;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.5, t + 0.05);
+          g.gain.linearRampToValueAtTime(0, t + 0.3);
+          o.start(t); o.stop(t + 0.35); t += 0.38;
+        });
+      } catch(e) {}
+      showToast('❌ O motorista cancelou a corrida.');
+      setTimeout(() => go('screen-home'), 1500);
+    }
     console.error('[passageiro] erro no listener de aceite:', erro);
   });
 }
@@ -1489,9 +1509,13 @@ function pararEscutaPosicaoMotorista() {
 // CHAT — passageiro ↔ motorista via Firestore
 // ─────────────────────────────────────
 function iniciarChatCorrida() {
-  document.getElementById('chat-panel').hidden = false;
+  document.getElementById('chat-panel').hidden = true; // começa fechado, abre só quando usuário tocar
   if (!firebaseReady || !db || !state.corridaId) return;
   if (state.chatListenerUnsub) return;
+
+  // Limpa mensagens da corrida anterior
+  const container = document.getElementById('chat-messages');
+  if (container) container.innerHTML = '';
 
   const q = fb.query(
     fb.collection(db, 'corridas', state.corridaId, 'mensagens'),
@@ -1501,9 +1525,6 @@ function iniciarChatCorrida() {
     snap.docChanges().forEach(change => {
       if (change.type === 'added') {
         const msg = change.doc.data();
-        // Só renderiza mensagens DO MOTORISTA — as do passageiro já foram
-        // renderizadas por enviarMensagemChat() antes de ir pro Firebase
-        // (evita duplicação)
         if (msg.de === 'passageiro') return;
         if (msg.tipo === 'audio') {
           renderChatMessage(null, 'them', msg.audioData);
