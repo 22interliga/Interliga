@@ -1509,9 +1509,14 @@ function pararEscutaPosicaoMotorista() {
 // CHAT — passageiro ↔ motorista via Firestore
 // ─────────────────────────────────────
 function iniciarChatCorrida() {
-  document.getElementById('chat-panel').hidden = true; // começa fechado, abre só quando usuário tocar
+  document.getElementById('chat-panel').hidden = true;
   if (!firebaseReady || !db || !state.corridaId) return;
-  if (state.chatListenerUnsub) return;
+
+  // Para qualquer listener anterior antes de criar um novo
+  if (state.chatListenerUnsub) {
+    state.chatListenerUnsub();
+    state.chatListenerUnsub = null;
+  }
 
   // Limpa mensagens da corrida anterior
   const container = document.getElementById('chat-messages');
@@ -1521,16 +1526,27 @@ function iniciarChatCorrida() {
     fb.collection(db, 'corridas', state.corridaId, 'mensagens'),
     fb.orderBy('ts', 'asc'), fb.limit(50)
   );
+
+  let primeiraCaraga = true;
   state.chatListenerUnsub = fb.onSnapshot(q, (snap) => {
+    if (primeiraCaraga) {
+      primeiraCaraga = false;
+      // Na primeira carga mostra tudo (incluindo msgs do passageiro mesmo, pra consistência)
+      if (container) container.innerHTML = '';
+      snap.docs.forEach(doc => {
+        const msg = doc.data();
+        if (msg.de === 'passageiro') return; // já foram renderizadas localmente
+        if (msg.tipo === 'audio') renderChatMessage(null, 'them', msg.audioData);
+        else renderChatMessage(msg.texto, 'them');
+      });
+      return;
+    }
     snap.docChanges().forEach(change => {
       if (change.type === 'added') {
         const msg = change.doc.data();
         if (msg.de === 'passageiro') return;
-        if (msg.tipo === 'audio') {
-          renderChatMessage(null, 'them', msg.audioData);
-        } else {
-          renderChatMessage(msg.texto, 'them');
-        }
+        if (msg.tipo === 'audio') renderChatMessage(null, 'them', msg.audioData);
+        else renderChatMessage(msg.texto, 'them');
       }
     });
   });
