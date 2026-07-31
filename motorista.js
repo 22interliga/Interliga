@@ -1678,7 +1678,9 @@ async function alternarGravacaoAudioChatMotorista() {
     return;
   }
   try {
+    showToast('🎙️ Acessando microfone...');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    showToast('🎙️ Microfone OK — gravando...');
     const opcoes = { audioBitsPerSecond: 24000 };
     if (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) {
       opcoes.mimeType = 'audio/webm;codecs=opus';
@@ -1711,7 +1713,7 @@ async function alternarGravacaoAudioChatMotorista() {
     timeoutGravacaoChatMotorista = setTimeout(() => { if (gravandoAudioChatMotorista) gravadorAudioChatMotorista?.stop(); }, 30000);
   } catch (e) {
     console.error('[motorista] erro ao gravar áudio:', e);
-    showToast('⚠️ Não foi possível acessar o microfone');
+    showToast('❌ Mic erro: ' + (e.name || e.message || String(e)));
   }
 }
 
