@@ -703,9 +703,12 @@ function pararEscutaCorridas() {
 // VOZ — avisos falados em voz alta, pro motorista não precisar ficar olhando a tela
 // ─────────────────────────────────────
 async function falarEmVoz(texto) {
-  // No APK Android, usa notificação nativa com som/vibração garantidos.
   if (window.AndroidNative?.tocarAlerta) {
-    window.AndroidNative.tocarAlerta(texto);
+    // Passa 'cancelamento' ou 'nova_corrida' em vez do texto completo
+    // pra o Java conseguir identificar o tipo correto
+    const tipo = texto.toLowerCase().includes('cancelou') || texto.toLowerCase().includes('cancel')
+      ? 'cancelamento' : 'nova_corrida';
+    window.AndroidNative.tocarAlerta(tipo);
     return;
   }
   try {
