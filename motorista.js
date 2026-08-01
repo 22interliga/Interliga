@@ -658,6 +658,9 @@ function iniciarEscutaCorridas() {
             const souAlvo = !corrida.motoristaAlvoAtual || corrida.motoristaAlvoAtual === meuMotoristaId;
             if (!souAlvo) return;
 
+            // Nao reofertar uma corrida que EU ja recusei
+            if (Array.isArray(corrida.recusantes) && corrida.recusantes.includes(meuMotoristaId)) return;
+
             // Evita notificar de novo pela mesma "rodada" da fila (mas notifica de novo se a fila avançou,
             // mesmo que tenha voltado pro mesmo motorista — por isso usa ofertaExpiraEm, que sempre muda).
             // Usa um Set (não uma variável única) pra nunca esquecer o que já foi
@@ -904,15 +907,21 @@ document.getElementById('btn-recusar')?.addEventListener('click', recusarCorrida
 // por todo mundo, volta pro primeiro da lista (reoferece pra todo mundo de novo),
 // em vez de matar a corrida — segue tentando até alguém aceitar.
 async function avancarFilaOuReabrir(corridaId, corrida) {
+  // Registra que EU recusei — vale pra qualquer modo (com ou sem fila),
+  // pra o listener parar de me reofertar esta corrida.
+  const recusantes = Array.isArray(corrida.recusantes) ? [...corrida.recusantes] : [];
+  if (!recusantes.includes(meuMotoristaId)) recusantes.push(meuMotoristaId);
+
   const fila = corrida.filaMotoristas || [];
-  if (fila.length === 0) return; // modo aberto (sem fila) — nada a avançar, segue 'aguardando' pra todo mundo
+  if (fila.length === 0) {
+    // modo aberto (sem fila): so marca minha recusa; a corrida segue 'aguardando' pros outros
+    await fb.updateDoc(fb.doc(db, 'corridas', corridaId), { recusantes });
+    return;
+  }
 
   let indiceAtual = typeof corrida.filaIndiceAtual === 'number' ? corrida.filaIndiceAtual : 0;
   let proximoIndice = indiceAtual + 1;
-  if (proximoIndice >= fila.length) proximoIndice = 0; // deu a volta — avisa todo mundo de novo
-
-  const recusantes = Array.isArray(corrida.recusantes) ? [...corrida.recusantes] : [];
-  if (!recusantes.includes(meuMotoristaId)) recusantes.push(meuMotoristaId);
+  if (proximoIndice >= fila.length) proximoIndice = 0; // deu a volta — reoferece pra todo mundo
 
   await fb.updateDoc(fb.doc(db, 'corridas', corridaId), {
     filaIndiceAtual: proximoIndice,
