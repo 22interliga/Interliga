@@ -658,9 +658,6 @@ function iniciarEscutaCorridas() {
             const souAlvo = !corrida.motoristaAlvoAtual || corrida.motoristaAlvoAtual === meuMotoristaId;
             if (!souAlvo) return;
 
-            // Nao reofertar uma corrida que EU ja recusei
-            if (Array.isArray(corrida.recusantes) && corrida.recusantes.includes(meuMotoristaId)) return;
-
             // Evita notificar de novo pela mesma "rodada" da fila (mas notifica de novo se a fila avançou,
             // mesmo que tenha voltado pro mesmo motorista — por isso usa ofertaExpiraEm, que sempre muda).
             // Usa um Set (não uma variável única) pra nunca esquecer o que já foi
@@ -931,6 +928,43 @@ async function avancarFilaOuReabrir(corridaId, corrida) {
   });
 }
 
+// Quantos segundos ate re-oferecer uma corrida que EU recusei/ignorei (ajuste aqui)
+const REOFERTA_COOLDOWN_MS = 20000; // 20s
+
+function agendarReoferta(corridaId) {
+  if (!state._reofertaTimers) state._reofertaTimers = {};
+  clearTimeout(state._reofertaTimers[corridaId]);
+  state._reofertaTimers[corridaId] = setTimeout(() => reofertarSeAindaLivre(corridaId), REOFERTA_COOLDOWN_MS);
+}
+
+function cancelarReoferta(corridaId) {
+  if (state._reofertaTimers && state._reofertaTimers[corridaId]) {
+    clearTimeout(state._reofertaTimers[corridaId]);
+    delete state._reofertaTimers[corridaId];
+  }
+}
+
+async function reofertarSeAindaLivre(corridaId) {
+  if (!state.online || !firebaseReady || !db) return;
+  try {
+    const snap = await fb.getDoc(fb.doc(db, 'corridas', corridaId));
+    if (!snap.exists()) return;
+    const data = snap.data();
+    if (data.status !== 'aguardando') return;            // ja foi aceita ou cancelada
+    if (data.motoristaId === meuMotoristaId) return;      // ja e minha
+    if (data.motoristaAlvoAtual && data.motoristaAlvoAtual !== meuMotoristaId) return; // e a vez de outro
+    if (state._ofertasJaNotificadas) {
+      for (const k of [...state._ofertasJaNotificadas]) {
+        if (k.startsWith(corridaId + ':')) state._ofertasJaNotificadas.delete(k);
+      }
+    }
+    console.log('[motorista] re-ofertando corrida apos cooldown:', corridaId);
+    notificarNovaCorrida({ id: corridaId, ...data });
+  } catch (e) {
+    console.warn('[motorista] erro ao re-ofertar:', e);
+  }
+}
+
 function recusarCorrida() {
   clearInterval(state.countdownInterval);
   clearInterval(state.somRepeticaoInterval);
@@ -942,6 +976,8 @@ function recusarCorrida() {
     avancarFilaOuReabrir(corridaId, corrida).catch((e) =>
       console.error('[motorista] erro ao avançar fila na recusa:', e)
     );
+    // Unico (ou ninguem pegou): re-oferece pra mim depois do cooldown
+    agendarReoferta(corridaId);
   }
 
   document.getElementById('request-card').hidden = true;
@@ -966,6 +1002,7 @@ async function aceitarCorrida() {
   clearInterval(state.countdownInterval);
   clearInterval(state.somRepeticaoInterval);
   pararEscutaOferta();
+  cancelarReoferta(state.corridaAtualId);
   const corrida = state.corridaAtual;
   if (!corrida) {
     showToast('⚠️ Esta corrida já não está disponível');
