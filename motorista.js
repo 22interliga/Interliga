@@ -826,6 +826,21 @@ function exibirCorridaRecebida(corrida) {
     document.getElementById('request-distancia').textContent = '-- km';
   }
 
+  // Distancia do motorista ate o passageiro + tempo estimado ate busca-lo
+  const elAtePax = document.getElementById('request-ate-pax');
+  const elTempo = document.getElementById('request-tempo');
+  if (elAtePax && elTempo) {
+    if (typeof state.motoristaLat === 'number' && typeof corrida.origemLat === 'number') {
+      const kmAte = haversineKm(state.motoristaLat, state.motoristaLon, corrida.origemLat, corrida.origemLon);
+      elAtePax.textContent = kmAte.toFixed(1) + ' km';
+      const minutos = Math.max(1, Math.round((kmAte / 25) * 60)); // ~25 km/h media urbana
+      elTempo.textContent = '~' + minutos + ' min';
+    } else {
+      elAtePax.textContent = '-- km';
+      elTempo.textContent = '-- min';
+    }
+  }
+
   // Mostra info do passageiro no card de oferta
   const nomePax = corrida.passageiroNome || 'Passageiro';
   const elPaxNome = document.getElementById('request-pax-nome');
@@ -1348,6 +1363,8 @@ function iniciarBroadcastPosicao() {
   watchPositionId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords;
+      state.motoristaLat = latitude;
+      state.motoristaLon = longitude;
       if (badge) badge.textContent = '🟢 Localização ativa';
       atualizarPosicaoNoMapa(latitude, longitude);
 
