@@ -152,8 +152,8 @@
 #countdown-num { font-size: 20px; font-weight: 800; color: var(--text); }
 
 .request-route { width: 100%; background: var(--bg); border-radius: var(--radius-md); padding: 14px; }
-.request-meta { display: flex; gap: 12px; width: 100%; }
-.meta-item { flex: 1; text-align: center; }
+.request-meta { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; }
+.meta-item { flex: 1 1 40%; text-align: center; }
 .meta-label { font-size: 11px; color: var(--text-soft); font-weight: 600; }
 .meta-value { font-size: 16px; font-weight: 700; color: var(--text); margin-top: 2px; }
 .meta-value--highlight { color: var(--orange); font-size: 20px; }
