@@ -6,12 +6,12 @@
 export const FIREBASE_SDK = '10.12.0';
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyAAwR-TwQlWIgR4hBRjWtjfm_qFSkultUY",
-  authDomain: "interliga-app.firebaseapp.com",
-  projectId: "interliga-app",
-  storageBucket: "interliga-app.firebasestorage.app",
-  messagingSenderId: "913895237568",
-  appId: "1:913895237568:web:faad95e8af089150e54a25",
+  apiKey: "AIzaSyAENmAi_4xE4jjcSGi4tAu9LlEafHEbKHc",
+  authDomain: "interliga-mobilidade.firebaseapp.com",
+  projectId: "interliga-mobilidade",
+  storageBucket: "interliga-mobilidade.firebasestorage.app",
+  messagingSenderId: "1071971171958",
+  appId: "1:1071971171958:web:b04980bd1abd4dcc7c2957"
 };
 
 export async function carregarFirebase(nomeApp) {
