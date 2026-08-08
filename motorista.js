@@ -1443,10 +1443,6 @@ document.getElementById('btn-cheguei')?.addEventListener('click', () => {
   } else {
     // Chegou no destino final — libera finalizar corrida
     chegouAoCliente = true;
-    // Avisa o passageiro (app nativo) que o motorista chegou
-    if (firebaseReady && db && state.corridaAtualId && !String(state.corridaAtualId).startsWith('local-')) {
-      fb.updateDoc(fb.doc(db, 'corridas', state.corridaAtualId), { motoristaChegou: true }).catch(() => {});
-    }
     document.getElementById('btn-cheguei').hidden = true;
     document.getElementById('btn-finalizar-corrida').hidden = false;
     document.getElementById('ongoing-eta-badge').textContent = '🟢 Você chegou!';
