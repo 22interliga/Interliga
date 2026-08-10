@@ -37,7 +37,6 @@ export function setStorageJSON(key, value) {
 let fb = {}; // funções do firestore, preenchidas após carregar
 let meuPassageiroId = null;
 let authPassageiro = null;
-let configApp = {}; // configuracoes/app do painel admin
 let authModRef = null;
 
 // Espera o Firebase terminar de conectar (até ~8s), em vez de desistir na hora.
@@ -69,7 +68,6 @@ async function initFirebase() {
 
     firebaseReady = true;
     console.log('✅ Firebase conectado');
-    carregarConfigOperacao();
 
     // Expõe pro food.js usar — são módulos separados (sem import circular entre eles)
     window.db = db;
@@ -814,36 +812,12 @@ function distanciaRotaTotal() {
   return total;
 }
 
-// Regra de preco por trecho da rota (mesma p/ todas as categorias):
-// trecho <= 3km -> R$5,00 ; trecho > 3km -> km x valor-por-km (definido no painel).
-// Soma todos os trechos (origem -> paradas -> destino).
-function calcularPrecoRota() {
-  const lista = (typeof paradasExtras !== 'undefined' ? paradasExtras : []) || [];
-  const pts = [state.origem, ...lista.filter(p => p && p.lat && p.lon), state.destino].filter(p => p && p.lat && p.lon);
-  const rate = Number(configApp && configApp.corridas && configApp.corridas.valorKmParada) || 2;
-  let total = 0;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const d = haversineKm(pts[i].lat, pts[i].lon, pts[i+1].lat, pts[i+1].lon);
-    total += d <= 3 ? 5.00 : d * rate;
-  }
-  return total;
-}
-
-async function carregarConfigOperacao() {
-  if (!firebaseReady || !db) return;
-  try {
-    const snap = await fb.getDoc(fb.doc(db, 'configuracoes', 'app'));
-    if (snap.exists()) { configApp = snap.data() || {}; if (state.origem && state.destino) calcularPrecos(); }
-  } catch (e) { console.warn('[passageiro] config nao carregada:', e); }
-}
-
 function calcularPrecos() {
   if (!state.origem || !state.destino) return;
 
   // Sem coordenada (endereço texto livre) — mostra o preço mínimo como estimativa
   const semCoordenada = !state.origem.lat || !state.destino.lat;
   const km = semCoordenada ? 0 : distanciaRotaTotal();
-  const precoRota = semCoordenada ? 0 : calcularPrecoRota();
   const risco = semCoordenada ? { acrescimo: 0, percentual: 0, zonasAtingidas: [] } : calcularAcrescimoRisco(state.origem, state.destino);
   const percentualHorario = calcularPercentualHorario();
   const cidade = semCoordenada ? 'madre' : detectarCidade(state.origem.lat, state.origem.lon);
@@ -900,9 +874,12 @@ function calcularPrecos() {
       if (priceEl) priceEl.textContent = (preco < minimoOriginal ? '🎁 R$ ' + preco.toFixed(2).replace('.', ',') : 'A partir de R$ ' + preco.toFixed(2).replace('.', ','));
       if (etaEl) etaEl.textContent = 'Combine c/ motorista';
     } else {
-      // Preco = soma dos trechos (mesma regra p/ todas as categorias).
-      const precoSemCupom = precoRota;
-      preco = aplicarDescontoCashback(aplicarDescontoCupom(precoSemCupom));
+      preco = Math.max(t.minimo, calcularPrecoBase(km, t)) * Number(t.multiplicador || 1) * multiplicadorZona;
+      preco = preco + risco.acrescimo;
+      preco = preco * (1 + risco.percentual / 100);
+      preco = preco * (1 + percentualHorario / 100);
+      const precoSemCupom = preco;
+      preco = aplicarDescontoCashback(aplicarDescontoCupom(preco));
       state.precosOriginais[cat] = precoSemCupom;
       if (priceEl) priceEl.textContent = (preco < precoSemCupom ? '🎁 ' : '') + 'R$ ' + preco.toFixed(2).replace('.', ',');
       if (etaEl) etaEl.textContent = Math.max(3, Math.round(km * 1.8)) + ' min';
