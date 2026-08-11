@@ -2342,18 +2342,8 @@ document.getElementById('payment-modal-close')?.addEventListener('click', () => 
 document.querySelectorAll('.payment-option').forEach(btn => {
   btn.addEventListener('click', async () => {
     const metodo = btn.dataset.payment;
-
     if (metodo === 'carteira') {
       const saldo = await obterSaldoCarteira(meuPassageiroId);
-      const precoEstimado = Math.max(
-        ...Object.values(state.precos || {}).filter(v => typeof v === 'number'),
-        0
-      );
-
+      const precoEstimado = Math.max(...Object.values(state.precos || {}).filter(v => typeof v === 'number'), 0);
       if (saldo < precoEstimado) {
-        showToast('⚠️ Saldo insuficiente');
-        return;
-      }
-    }
-  });
-});
+        showToast('⚠️ Saldo insuficiente
