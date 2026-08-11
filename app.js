@@ -160,12 +160,20 @@ export function go(screenId) {
 
   // Efeitos colaterais por tela — todos centralizados aqui, sem espalhar
   const onEnterHandlers = {
-    'screen-home': onEnterHome,
-    'screen-ride': onEnterRide,
-    'screen-schedule': onEnterSchedule,
-    'screen-food-list': () => { if (typeof window.renderRestaurantList === 'function') window.renderRestaurantList(); },
-    'screen-trips': renderTripsScreen,
-  };
+  'screen-home': onEnterHome,
+  'screen-ride': onEnterRide,
+  'screen-schedule': () => {
+    if (typeof window.onEnterSchedule === 'function') {
+      window.onEnterSchedule();
+    }
+  },
+  'screen-food-list': () => {
+    if (typeof window.renderRestaurantList === 'function') {
+      window.renderRestaurantList();
+    }
+  },
+  'screen-trips': renderTripsScreen,
+};
   if (onEnterHandlers[screenId]) onEnterHandlers[screenId]();
 }
 
