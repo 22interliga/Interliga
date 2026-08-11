@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════
 // INTERLIGA — Passageiro
 // app.js — única fonte de verdade, sem duplicação
@@ -1377,6 +1376,7 @@ function ouvirAceiteCorrida(corridaId) {
       showToast('❌ O motorista cancelou a corrida.');
       setTimeout(() => go('screen-home'), 1500);
     }
+  }, (erro) => {
     console.error('[passageiro] erro no listener de aceite:', erro);
   });
 }
