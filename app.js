@@ -2215,6 +2215,34 @@ document.getElementById('btn-call-driver')?.addEventListener('click', () => {
 const TEMPO_GRACA_CANCEL_MS = 3 * 60 * 1000; // 3 minutos
 let motivoCancelamentoSelecionado = null;
 
+// ─── Botão de pânico / emergência (passageiro) ───
+document.getElementById('btn-panico-passageiro')?.addEventListener('click', () => acionarEmergencia());
+async function acionarEmergencia() {
+  const ok = confirm('🆘 Acionar EMERGÊNCIA?\n\nSua localização será registrada e o telefone vai ligar para a polícia (190).');
+  if (!ok) return;
+  let lat = null, lon = null;
+  try {
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000, enableHighAccuracy: true }));
+    lat = pos.coords.latitude; lon = pos.coords.longitude;
+  } catch (e) {
+    if (state.origem && state.origem.lat) { lat = state.origem.lat; lon = state.origem.lon; }
+  }
+  try {
+    if (firebaseReady && db) {
+      await fb.addDoc(fb.collection(db, 'emergencias'), {
+        tipo: 'passageiro',
+        corridaId: state.corridaId || null,
+        uid: (typeof meuPassageiroId !== 'undefined' ? meuPassageiroId : null),
+        nome: (state.passageiroDados && state.passageiroDados.nome) || '—',
+        cidade: (state.passageiroDados && state.passageiroDados.cidade) || null,
+        lat, lon, status: 'ativo',
+        criadoEm: fb.serverTimestamp(),
+      });
+    }
+  } catch (e) { console.error('[passageiro] erro ao registrar emergencia:', e); }
+  try { window.location.href = 'tel:190'; } catch (e) {}
+}
+
 document.getElementById('btn-cancelar-corrida')?.addEventListener('click', () => {
   const modal = document.getElementById('cancel-modal');
   const warning = document.getElementById('cancel-warning');
@@ -2318,35 +2346,4 @@ document.querySelectorAll('.payment-option').forEach(btn => {
       const saldo = await obterSaldoCarteira(meuPassageiroId);
       const precoEstimado = Math.max(...Object.values(state.precos || {}).filter(v => typeof v === 'number'), 0);
       if (saldo < precoEstimado) {
-        showToast('⚠️ Saldo insuficiente na carteira (R$ ' + saldo.toFixed(2).replace('.', ',') + ')');
-        return;
-      }
-    }
-    document.querySelectorAll('.payment-option').forEach(b => b.classList.remove('is-selected'));
-    btn.classList.add('is-selected');
-    document.getElementById('payment-select-label').textContent = btn.dataset.label;
-    state.formaPagamento = metodo;
-    document.getElementById('payment-modal').hidden = true;
-  });
-});
-
-// ─────────────────────────────────────
-// PARADAS EXTRAS
-// ─────────────────────────────────────
-let paradasExtras = [];
-
-document.getElementById('btn-add-stop-pre')?.addEventListener('click', () => {
-  const idx = paradasExtras.length;
-  paradasExtras.push({ texto: '', lat: null, lon: null });
-  renderParadas();
-});
-
-function renderParadas() {
-  const container = document.getElementById('stops-list-pre');
-  if (!container) return;
-  container.innerHTML = paradasExtras.map((p, i) => `
-    <div class="address-field" style="padding:8px 16px;position:relative;">
-      <span class="address-dot" style="background:#9098A8;"></span>
-      <input type="text" class="stop-input" data-stop-idx="${i}" placeholder="Endereço da parada ${i+1}" value="${p.texto}" autocomplete="off">
-      <button class="stop-remove" data-remove-stop="${i}">✕</button>
-      <div class="address-suggestions stop-suggestions" data-sugge
+        showToast('⚠️ Saldo insuficiente
