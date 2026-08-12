@@ -6,6 +6,7 @@
 import { carregarFirebase } from './firebase-config.js';
 let db = null;
 let firebaseReady = false;
+let _loginEmAndamento = false;
 let fb = {};
 let authMotorista = null;
 let authModRef = null;
@@ -42,6 +43,7 @@ const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interli
     // Login real (e-mail/senha) — com sessão salva, entra direto. Sem sessão, pede login.
     authMod.onAuthStateChanged(authMotorista, (user) => {
       if (user) {
+        _loginEmAndamento = false;
         meuMotoristaId = user.uid;
         verificarCadastroMotorista();
       } else {
@@ -51,6 +53,7 @@ const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interli
         // (o Firebase demora um pouco pra restaurar a sessão)
         setTimeout(() => {
           if (meuMotoristaId) return; // sessão restaurou nesse tempo, ignora
+          if (_loginEmAndamento) return; // login em andamento — não redireciona
           const telaAtual = document.querySelector('.screen[data-active="true"]')?.id;
           const processandoLogin = document.getElementById('btn-fazer-login-motorista')?.disabled;
           if (!processandoLogin &&
@@ -2151,9 +2154,11 @@ document.getElementById('btn-fazer-login-motorista')?.addEventListener('click', 
   }
   btn.textContent = 'Entrando...';
   try {
+    _loginEmAndamento = true;
     await authModRef.signInWithEmailAndPassword(authMotorista, email, senha);
-    // onAuthStateChanged cuida do resto (verificarCadastroMotorista)
+    // onAuthStateChanged cuida do resto (verificarCadastroMotorista) e limpa a flag
   } catch (e) {
+    _loginEmAndamento = false; // login falhou — libera a flag
     console.warn('[motorista] erro no login:', e.code);
     erroEl.textContent = '❌ E-mail ou senha incorretos';
     erroEl.hidden = false;
@@ -2354,292 +2359,4 @@ document.getElementById('btn-salvar-perfil-motorista')?.addEventListener('click'
   erroEl.hidden = true;
   const nome = document.getElementById('ed-mot-nome').value.trim();
   const celular = document.getElementById('ed-mot-celular').value.trim();
-  const veiculo = document.getElementById('ed-mot-veiculo').value.trim();
-  const placa = document.getElementById('ed-mot-placa').value.trim().toUpperCase();
-
-  if (!nome || nome.split(' ').length < 2) { erroEl.textContent = '⚠️ Informe seu nome completo'; erroEl.hidden = false; return; }
-  if (celular.replace(/\D/g, '').length < 10) { erroEl.textContent = '⚠️ Informe um celular válido com DDD'; erroEl.hidden = false; return; }
-  if (!veiculo || !placa) { erroEl.textContent = '⚠️ Informe o veículo e a placa'; erroEl.hidden = false; return; }
-  if (!firebaseReady || !db || !meuMotoristaId) { erroEl.textContent = '⚠️ Sem conexão com o servidor'; erroEl.hidden = false; return; }
-
-  const btn = document.getElementById('btn-salvar-perfil-motorista');
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
-  try {
-    await fb.setDoc(fb.doc(db, 'motoristas', meuMotoristaId), { nome, celular, veiculo, placa }, { merge: true });
-    state.motorista.nome = nome;
-    state.motorista.celular = celular;
-    state.motorista.veiculo = veiculo;
-    state.motorista.placa = placa;
-    showToast('✅ Perfil atualizado!');
-    go('screen-profile');
-    verificarCadastroMotorista(); // recarrega os dados exibidos
-  } catch (e) {
-    console.error('[motorista] erro ao salvar perfil:', e);
-    erroEl.textContent = '⚠️ Erro ao salvar — tenta de novo';
-    erroEl.hidden = false;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Salvar alterações';
-  }
-});
-
-document.getElementById('btn-suporte-motorista')?.addEventListener('click', () => {
-  const msg = encodeURIComponent('Olá! Preciso de ajuda com o app do motorista Interliga.');
-  window.open('https://wa.me/5571981899571?text=' + msg, '_blank');
-});
-
-document.getElementById('btn-sair-motorista')?.addEventListener('click', async () => {
-  if (!confirm('Sair da sua conta? Você vai precisar fazer login de novo pra voltar a usar o app.')) return;
-  try {
-    if (state.online) {
-      pararEscutaCorridas();
-      pararDisponibilidade();
-    }
-    if (authMotorista) await authModRef.signOut(authMotorista);
-    meuMotoristaId = null;
-    go('screen-login-motorista');
-  } catch (e) {
-    console.error('[motorista] erro ao sair:', e);
-    showToast('⚠️ Erro ao sair, tenta de novo');
-  }
-});
-
-document.getElementById('btn-trocar-para-passageiro')?.addEventListener('click', () => {
-  // Precisa marcar o papel como 'passageiro' antes de voltar — senão o
-  // index.html detecta 'motorista' salvo e manda de volta pra cá na hora.
-  localStorage.setItem('interliga_papel', 'passageiro');
-  window.location.href = 'index.html';
-});
-
-// ─────────────────────────────────────
-// NOTIFICAÇÕES PUSH — recebe aviso de corrida nova mesmo com o app fechado/
-// em segundo plano (precisa da chave VAPID do Firebase Console, ver abaixo)
-// ─────────────────────────────────────
-const VAPID_KEY = 'BNlkkjvYwHosBBv6UWCzKWCB58rNoEP1YrlGFsXetoPFLDMWUNdA2r4VqtD4sHwgdb_yyKbOBydT2dxKDXWrrY4'; // Firebase Console → Configurações do projeto → Cloud Messaging → Web Push certificates
-
-let pushConfigurado = false;
-
-async function configurarNotificacoesPush() {
-  if (pushConfigurado) return;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('[motorista] notificações push não suportadas neste navegador');
-    return;
-  }
-  if (!fbAppInstancia || !meuMotoristaId || !db) return;
-  if (VAPID_KEY === 'BNlkkjvYwHosBBv6UWCzKWCB58rNoEP1YrlGFsXetoPFLDMWUNdA2r4VqtD4sHwgdb_yyKbOBydT2dxKDXWrrY4') {
-    console.warn('[motorista] VAPID_KEY ainda não configurada — pulando notificações push');
-    return;
-  }
-
-  try {
-    const permissao = await Notification.requestPermission();
-    if (permissao !== 'granted') {
-      console.warn('[motorista] permissão de notificação negada pelo usuário');
-      return;
-    }
-
-    const messagingMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
-    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-    const messaging = messagingMod.getMessaging(fbAppInstancia);
-    const token = await messagingMod.getToken(messaging, {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: registration,
-    });
-
-    if (token) {
-      await fb.setDoc(fb.doc(db, 'motoristas', meuMotoristaId), { fcmToken: token }, { merge: true });
-      pushConfigurado = true;
-      console.log('[motorista] notificações push configuradas');
-    }
-  } catch (e) {
-    console.warn('[motorista] erro ao configurar notificações push:', e);
-  }
-}
-
-window.addEventListener('popstate', () => {
-  // Se tiver em corrida ativa, ignora o voltar — não deixa sair da tela de corrida
-  if (state.emCorridaAtiva) {
-    history.pushState(null, '', '');
-    showToast('🚗 Você está numa corrida em andamento');
-    return;
-  }
-  const anterior = historicoNavMotorista.pop();
-  if (anterior) {
-    const next = document.getElementById(anterior);
-    if (!next) return;
-    const current = document.querySelector('.screen[data-active="true"]');
-    if (current) current.removeAttribute('data-active');
-    next.setAttribute('data-active', 'true');
-    const handlers = { 'screen-home': onEnterHome, 'screen-ongoing': onEnterOngoing };
-    if (handlers[anterior]) handlers[anterior]();
-  } else {
-    history.pushState(null, '', '');
-  }
-});
-
-history.pushState(null, '', '');
-
-// ═══════════════════════════════════════
-// ENTREGAS INTERIFOOD — motoboy recebe e entrega pedidos
-// ═══════════════════════════════════════
-let entregasListenerUnsub = null;
-let entregaAtualId = null;
-let entregaAtualDados = null;
-
-function iniciarListenerEntregas() {
-  if (!firebaseReady || !db) return;
-  if (entregasListenerUnsub) return;
-
-  // Escuta pedidos com status 'aguardando_entregador' — prontos pra busca
-  const q = fb.query(
-    fb.collection(db, 'pedidos_food'),
-    fb.where('status', '==', 'aguardando_entregador'),
-    fb.where('tipoEntrega', '==', 'interliga')
-  );
-
-  entregasListenerUnsub = fb.onSnapshot(q, (snap) => {
-    const badge = document.getElementById('badge-entregas');
-    const lista = document.getElementById('lista-pedidos-entrega');
-    if (!lista) return;
-
-    // Não mostra se já está em outra entrega
-    if (entregaAtualId) return;
-
-    const pedidos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    // Atualiza badge
-    if (badge) {
-      badge.textContent = pedidos.length;
-      badge.style.display = pedidos.length > 0 ? 'flex' : 'none';
-    }
-
-    if (pedidos.length === 0) {
-      lista.innerHTML = `
-        <div style="text-align:center;color:#9098A8;padding:30px;">
-          <div style="font-size:32px;margin-bottom:8px;">🛵</div>
-          <div style="font-weight:600;">Nenhuma entrega disponível</div>
-          <div style="font-size:13px;margin-top:4px;">Quando um restaurante precisar de entregador, aparece aqui</div>
-        </div>`;
-      return;
-    }
-
-    lista.innerHTML = pedidos.map(p => {
-      const itens = (p.itens || []).map(i => `${i.qtd}x ${i.nome}`).join(', ');
-      return `
-        <div style="background:#1A1F2E;border-radius:14px;border:1px solid #2A3142;padding:16px;">
-          <div style="font-weight:700;font-size:15px;margin-bottom:6px;">🍔 ${p.restauranteNome || '—'}</div>
-          <div style="font-size:13px;color:#9098A8;margin-bottom:4px;">Itens: ${itens}</div>
-          <div style="font-size:13px;color:#9098A8;margin-bottom:8px;">📍 Entregar em: ${p.endereco || '—'}</div>
-          <div style="font-size:15px;font-weight:700;color:#FF6B00;margin-bottom:12px;">Taxa: ${formatMoeda(p.taxaEntrega || 0)}</div>
-          <button class="btn-accept" onclick="aceitarEntrega('${p.id}')">✅ Aceitar entrega</button>
-        </div>`;
-    }).join('');
-  });
-}
-
-async function aceitarEntrega(pedidoId) {
-  if (!firebaseReady || !db || !meuMotoristaId) return;
-  try {
-    await fb.updateDoc(fb.doc(db, 'pedidos_food', pedidoId), {
-      status: 'entrega',
-      entregadorId: meuMotoristaId,
-      entregadorNome: state.motorista?.nome || 'Entregador',
-      atualizadoEm: fb.serverTimestamp(),
-    });
-
-    entregaAtualId = pedidoId;
-    // Busca os dados completos
-    const snap = await fb.getDoc(fb.doc(db, 'pedidos_food', pedidoId));
-    entregaAtualDados = snap.data();
-
-    // Mostra o card de entrega em andamento
-    document.getElementById('entrega-em-andamento').hidden = false;
-    document.getElementById('entrega-restaurante-nome').textContent = entregaAtualDados.restauranteNome || '—';
-    document.getElementById('entrega-restaurante-end').textContent = entregaAtualDados.enderecoRestaurante || 'Ver no mapa';
-    document.getElementById('entrega-cliente-nome').textContent = entregaAtualDados.passageiroNome || '—';
-    document.getElementById('entrega-cliente-end').textContent = entregaAtualDados.endereco || '—';
-
-    document.getElementById('lista-pedidos-entrega').innerHTML = '';
-    showToast('✅ Entrega aceita! Vá ao restaurante buscar o pedido.');
-  } catch(e) {
-    showToast('⚠️ Erro ao aceitar: ' + (e.message || e.code));
-  }
-}
-// motorista.js é carregado como <script type="module">, então funções
-// declaradas aqui ficam no escopo do módulo — não em window. O botão dessa
-// tela é criado dinamicamente (innerHTML) com onclick="aceitarEntrega(...)",
-// que roda no escopo global, então precisa dessa exposição explícita pra
-// não dar "aceitarEntrega is not defined" ao clicar.
-window.aceitarEntrega = aceitarEntrega;
-
-document.getElementById('btn-entrega-coletei')?.addEventListener('click', async () => {
-  if (!entregaAtualId) return;
-  try {
-    await fb.updateDoc(fb.doc(db, 'pedidos_food', entregaAtualId), {
-      status: 'entrega_a_caminho',
-      atualizadoEm: fb.serverTimestamp(),
-    });
-    document.getElementById('btn-entrega-coletei').hidden = true;
-    document.getElementById('btn-entrega-entregue').hidden = false;
-    document.getElementById('btn-entrega-devolver').hidden = false;
-    showToast('🛵 Ótimo! Agora entregue ao cliente.');
-  } catch(e) { showToast('⚠️ Erro: ' + e.message); }
-});
-
-document.getElementById('btn-entrega-entregue')?.addEventListener('click', async () => {
-  if (!entregaAtualId) return;
-  try {
-    await fb.updateDoc(fb.doc(db, 'pedidos_food', entregaAtualId), {
-      status: 'entregue',
-      atualizadoEm: fb.serverTimestamp(),
-    });
-    showToast('🏠 Entrega concluída!');
-    resetarEntregaAtual();
-  } catch(e) { showToast('⚠️ Erro: ' + e.message); }
-});
-
-document.getElementById('btn-entrega-devolver')?.addEventListener('click', async () => {
-  if (!entregaAtualId) return;
-  const motivo = prompt('Motivo da devolução:\n1 - Cliente não encontrado\n2 - Cliente recusou o pedido\n3 - Endereço incorreto\n4 - Outro\n\nDigite o número ou descreva:');
-  if (!motivo) return;
-  try {
-    await fb.updateDoc(fb.doc(db, 'pedidos_food', entregaAtualId), {
-      status: 'devolvido',
-      motivoDevolucao: motivo,
-      atualizadoEm: fb.serverTimestamp(),
-    });
-    showToast('↩️ Devolução registrada — retorne ao restaurante.');
-    resetarEntregaAtual();
-  } catch(e) { showToast('⚠️ Erro: ' + e.message); }
-});
-
-function resetarEntregaAtual() {
-  entregaAtualId = null;
-  entregaAtualDados = null;
-  document.getElementById('entrega-em-andamento').hidden = true;
-  document.getElementById('btn-entrega-coletei').hidden = false;
-  document.getElementById('btn-entrega-entregue').hidden = true;
-  document.getElementById('btn-entrega-devolver').hidden = true;
-}
-
-function formatMoeda(v) { return 'R$ ' + Number(v||0).toFixed(2).replace('.', ','); }
-
-function boot() {
-  initFirebase(); // assíncrono — quando conectar, chama verificarCadastroMotorista() que decide a tela certa
-  setTimeout(() => {
-    // Rede de segurança: se o Firebase não respondeu em 6s (sem internet, erro etc.),
-    // libera a Home mesmo assim, em vez de travar o motorista pra sempre no splash.
-    const splash = document.getElementById('screen-splash');
-    if (splash && splash.getAttribute('data-active') === 'true') {
-      console.warn('[motorista] Firebase demorou pra responder — liberando Home em modo offline.');
-      go('screen-home');
-    }
-  }, 6000);
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot);
-} else {
-  boot();
-}
+  const veiculo = document.getElementById('
