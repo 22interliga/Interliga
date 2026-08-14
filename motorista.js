@@ -839,8 +839,8 @@ function exibirCorridaRecebida(corrida) {
       const minutos = Math.max(1, Math.round((kmAte / 25) * 60)); // ~25 km/h media urbana
       elTempo.textContent = '~' + minutos + ' min';
     } else {
-      elAtePax.textContent = '-- km';
-      elTempo.textContent = '-- min';
+      elAtePax.textContent = 'Calculando...';
+      elTempo.textContent = 'Calculando...';
     }
   }
 
