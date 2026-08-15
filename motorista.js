@@ -833,14 +833,26 @@ function exibirCorridaRecebida(corrida) {
   const elAtePax = document.getElementById('request-ate-pax');
   const elTempo = document.getElementById('request-tempo');
   if (elAtePax && elTempo) {
-    if (typeof state.motoristaLat === 'number' && typeof corrida.origemLat === 'number') {
-      const kmAte = haversineKm(state.motoristaLat, state.motoristaLon, corrida.origemLat, corrida.origemLon);
+    const temOrigem = typeof corrida.origemLat === 'number' && typeof corrida.origemLon === 'number';
+    const mostrarAte = (mLat, mLon) => {
+      const kmAte = haversineKm(mLat, mLon, corrida.origemLat, corrida.origemLon);
       elAtePax.textContent = kmAte.toFixed(1) + ' km';
-      const minutos = Math.max(1, Math.round((kmAte / 25) * 60)); // ~25 km/h media urbana
-      elTempo.textContent = '~' + minutos + ' min';
-    } else {
+      elTempo.textContent = '~' + Math.max(1, Math.round((kmAte / 25) * 60)) + ' min'; // ~25 km/h media urbana
+    };
+    if (typeof state.motoristaLat === 'number' && temOrigem) {
+      mostrarAte(state.motoristaLat, state.motoristaLon);
+    } else if (temOrigem && navigator.geolocation) {
+      // Sem posicao ainda: tenta pegar o GPS uma vez; se nao vier em 8s, mostra tracinho.
       elAtePax.textContent = 'Calculando...';
       elTempo.textContent = 'Calculando...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { state.motoristaLat = pos.coords.latitude; state.motoristaLon = pos.coords.longitude; mostrarAte(pos.coords.latitude, pos.coords.longitude); },
+        () => { elAtePax.textContent = '\u2014'; elTempo.textContent = '\u2014'; },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    } else {
+      elAtePax.textContent = '\u2014';
+      elTempo.textContent = '\u2014';
     }
   }
 
