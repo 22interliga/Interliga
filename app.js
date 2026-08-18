@@ -2334,4 +2334,832 @@ async function acionarEmergencia() {
   try {
     if (firebaseReady && db) {
       await fb.addDoc(fb.collection(db, 'emergencias'), {
-        
+        tipo: 'passageiro',
+        corridaId: state.corridaId || null,
+        uid: (typeof meuPassageiroId !== 'undefined' ? meuPassageiroId : null),
+        nome: (state.passageiroDados && state.passageiroDados.nome) || '—',
+        cidade: (state.passageiroDados && state.passageiroDados.cidade) || null,
+        lat, lon, status: 'ativo',
+        criadoEm: fb.serverTimestamp(),
+      });
+    }
+  } catch (e) { console.error('[passageiro] erro ao registrar emergencia:', e); }
+  try { window.location.href = 'tel:190'; } catch (e) {}
+}
+
+document.getElementById('btn-cancelar-corrida')?.addEventListener('click', () => {
+  const modal = document.getElementById('cancel-modal');
+  const warning = document.getElementById('cancel-warning');
+  const temMulta = timestampAceite && (Date.now() - timestampAceite) >= TEMPO_GRACA_CANCEL_MS;
+  if (warning) warning.hidden = !temMulta;
+  if (modal) modal.hidden = false;
+});
+
+document.getElementById('cancel-modal-close')?.addEventListener('click', () => {
+  document.getElementById('cancel-modal').hidden = true;
+});
+
+document.querySelectorAll('.cancel-reason').forEach(btn => {
+  btn.addEventListener('click', () => {
+    motivoCancelamentoSelecionado = btn.dataset.reason;
+    confirmarCancelamento();
+  });
+});
+
+// ─────────────────────────────────────
+// CANCELAR DURANTE A BUSCA (antes de motorista aceitar — sem multa, sem motivo)
+// ─────────────────────────────────────
+function cancelarBuscaCorrida() {
+  if (state.corridaListenerUnsub) { state.corridaListenerUnsub(); state.corridaListenerUnsub = null; }
+  pararFilaWatchdog();
+  if (firebaseReady && db && state.corridaId && !String(state.corridaId).startsWith('local-')) {
+    fb.updateDoc(fb.doc(db, 'corridas', state.corridaId), { status: 'cancelada' }).catch(() => {});
+  }
+  atualizarStatusHistoricoLocal('cancelada');
+  showToast('Solicitação cancelada');
+  go('screen-home');
+}
+
+document.getElementById('btn-cancelar-busca')?.addEventListener('click', cancelarBuscaCorrida);
+
+// Se o usuário voltar para a Home enquanto ainda procurava motorista (sem motorista aceito),
+// cancela automaticamente a solicitação para não deixá-la "pendurada" no Firebase
+document.querySelector('#screen-tracking .back-btn')?.addEventListener('click', () => {
+  const aindaBuscando = !document.getElementById('block-searching').hidden;
+  if (aindaBuscando && state.corridaId) {
+    cancelarBuscaCorrida();
+  }
+});
+
+function confirmarCancelamento() {
+  document.getElementById('cancel-modal').hidden = true;
+
+  const temMulta = timestampAceite && (Date.now() - timestampAceite) >= TEMPO_GRACA_CANCEL_MS;
+
+  if (state.corridaListenerUnsub) { state.corridaListenerUnsub(); state.corridaListenerUnsub = null; }
+  if (state.chatListenerUnsub) { state.chatListenerUnsub(); state.chatListenerUnsub = null; }
+  pararEscutaPosicaoMotorista(); // essencial: sem isso, o rastreio ao vivo trava na próxima corrida
+  if (firebaseReady && db && state.corridaId && !state.corridaId.startsWith('local-')) {
+    fb.updateDoc(fb.doc(db, 'corridas', state.corridaId), {
+      status: 'cancelada',
+      motivoCancelamento: motivoCancelamentoSelecionado,
+      multaCobrada: temMulta,
+    }).catch(() => {});
+  }
+  atualizarStatusHistoricoLocal('cancelada', { multaCobrada: temMulta });
+
+  if (temMulta) {
+    showToast('❌ Corrida cancelada · Multa de R$ 5,00 cobrada');
+    // Registra a multa pendente vinculada ao passageiro
+    // O motorista recebe quando o passageiro pagar na próxima corrida
+    if (firebaseReady && db && state.corridaId) {
+      const motoristaId = state.motoristaIdDaCorrida || null;
+      if (motoristaId) {
+        fb.addDoc(fb.collection(db, 'multas_pendentes'), {
+          passageiroId: meuPassageiroId || null,
+          motoristaId,
+          corridaId: state.corridaId,
+          valor: 5.00,
+          status: 'pendente',
+          criadoEm: fb.serverTimestamp(),
+        }).catch(() => {});
+      }
+    }
+  } else {
+    showToast('Corrida cancelada · Sem multa');
+  }
+
+  timestampAceite = null;
+  motivoCancelamentoSelecionado = null;
+  go('screen-home');
+}
+
+// ─────────────────────────────────────
+// PAGAMENTO — seleção de forma
+// ─────────────────────────────────────
+document.getElementById('payment-select')?.addEventListener('click', () => {
+  document.getElementById('payment-modal').hidden = false;
+});
+document.getElementById('payment-modal-close')?.addEventListener('click', () => {
+  document.getElementById('payment-modal').hidden = true;
+});
+document.querySelectorAll('.payment-option').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const metodo = btn.dataset.payment;
+    if (metodo === 'carteira') {
+      const saldo = await obterSaldoCarteira(meuPassageiroId);
+      const precoEstimado = Math.max(...Object.values(state.precos || {}).filter(v => typeof v === 'number'), 0);
+      if (saldo < precoEstimado) {
+        showToast('⚠️ Saldo insuficiente na carteira (R$ ' + saldo.toFixed(2).replace('.', ',') + ')');
+        return;
+      }
+    }
+    document.querySelectorAll('.payment-option').forEach(b => b.classList.remove('is-selected'));
+    btn.classList.add('is-selected');
+    document.getElementById('payment-select-label').textContent = btn.dataset.label;
+    state.formaPagamento = metodo;
+    document.getElementById('payment-modal').hidden = true;
+  });
+});
+
+// ─────────────────────────────────────
+// PARADAS EXTRAS
+// ─────────────────────────────────────
+let paradasExtras = [];
+
+document.getElementById('btn-add-stop-pre')?.addEventListener('click', () => {
+  const idx = paradasExtras.length;
+  paradasExtras.push({ texto: '', lat: null, lon: null });
+  renderParadas();
+});
+
+function renderParadas() {
+  const container = document.getElementById('stops-list-pre');
+  if (!container) return;
+  container.innerHTML = paradasExtras.map((p, i) => `
+    <div class="address-field" style="padding:8px 16px;position:relative;">
+      <span class="address-dot" style="background:#9098A8;"></span>
+      <input type="text" class="stop-input" data-stop-idx="${i}" placeholder="Endereço da parada ${i+1}" value="${p.texto}" autocomplete="off">
+      <button class="stop-remove" data-remove-stop="${i}">✕</button>
+      <div class="address-suggestions stop-suggestions" data-suggestions-idx="${i}"></div>
+    </div>
+  `).join('');
+
+  // Conectar autocomplete real em cada input de parada recém-criado
+  container.querySelectorAll('.stop-input').forEach((input) => {
+    if (input._wired) return;
+    const idx = parseInt(input.dataset.stopIdx, 10);
+    const suggestionsBox = container.querySelector(`.stop-suggestions[data-suggestions-idx="${idx}"]`);
+    attachAddressAutocomplete(input, (r) => {
+      paradasExtras[idx].texto = r ? r.texto : '';
+      paradasExtras[idx].lat = r ? r.lat : null;
+      paradasExtras[idx].lon = r ? r.lon : null;
+      calcularPrecos();
+    }, suggestionsBox);
+    input._wired = true;
+  });
+}
+
+document.getElementById('stops-list-pre')?.addEventListener('input', (e) => {
+  const input = e.target.closest('.stop-input');
+  if (!input) return;
+  const idx = parseInt(input.dataset.stopIdx, 10);
+  paradasExtras[idx].texto = input.value;
+});
+
+document.getElementById('stops-list-pre')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-remove-stop]');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.removeStop, 10);
+  paradasExtras.splice(idx, 1);
+  renderParadas();
+  calcularPrecos();
+});
+
+// ─────────────────────────────────────
+// SEQUÊNCIA DE ROTA (origem → paradas → destino final)
+// ─────────────────────────────────────
+let sequenciaRota = []; // [{ texto, lat, lon, tipo: 'origem'|'parada'|'destino' }]
+let indiceRotaAtual = 0;
+
+function montarSequenciaInicial() {
+  sequenciaRota = [
+    { texto: state.origem?.texto || 'Origem', lat: state.origem?.lat, lon: state.origem?.lon, tipo: 'origem' },
+    // Paradas adicionadas antes de solicitar a corrida entram aqui, no meio da rota
+    ...paradasExtras.filter(p => p.texto.trim()).map(p => ({ texto: p.texto, lat: p.lat, lon: p.lon, tipo: 'parada' })),
+    { texto: state.destino?.texto || 'Destino', lat: state.destino?.lat, lon: state.destino?.lon, tipo: 'destino' },
+  ];
+  indiceRotaAtual = 0;
+  renderRotaAtual();
+}
+
+function renderRotaAtual() {
+  const origemEl = document.getElementById('tracking-origem');
+  const destinoEl = document.getElementById('tracking-destino');
+  if (!origemEl || !destinoEl) return;
+
+  const pontoAtual = sequenciaRota[indiceRotaAtual];
+  const proximoPonto = sequenciaRota[indiceRotaAtual + 1];
+
+  origemEl.textContent = pontoAtual ? pontoAtual.texto : '—';
+  destinoEl.textContent = proximoPonto ? proximoPonto.texto : '—';
+
+  // Mostra o resto da fila (pontos depois do próximo), pra deixar claro que nada foi substituído —
+  // só empurrado pra depois da nova parada
+  const restantes = sequenciaRota.slice(indiceRotaAtual + 2);
+  const elRestantes = document.getElementById('tracking-proximas-paradas');
+  if (elRestantes) {
+    elRestantes.innerHTML = restantes.length > 0
+      ? 'Depois: ' + restantes.map(p => p.texto).join(' → ')
+      : '';
+  }
+
+  // O botão de avançar parada é controlado pelo MOTORISTA, não pelo passageiro.
+  // O passageiro só acompanha — esconde o botão sempre no lado dele.
+  const btnAvancar = document.getElementById('btn-avancar-parada');
+  if (btnAvancar) btnAvancar.hidden = true;
+}
+
+function obterPontoAtualDaRota() {
+  // Ponto que o motorista está buscando agora (o próximo na sequência)
+  return sequenciaRota[indiceRotaAtual + 1] || sequenciaRota[indiceRotaAtual] || null;
+}
+
+function avancarParaProximaParada() {
+  if (indiceRotaAtual < sequenciaRota.length - 2) {
+    indiceRotaAtual++;
+    renderRotaAtual();
+    sincronizarRotaNoFirebase();
+    showToast('📍 A caminho de: ' + sequenciaRota[indiceRotaAtual + 1]?.texto);
+  }
+}
+
+// O controle de avanço de parada é exclusivo do MOTORISTA.
+// O passageiro só acompanha — o botão existe no HTML mas nunca deve aparecer nem funcionar.
+const btnAvancarPassageiro = document.getElementById('btn-avancar-parada');
+if (btnAvancarPassageiro) {
+  btnAvancarPassageiro.hidden = true;
+  btnAvancarPassageiro.style.display = 'none'; // garante que não aparece mesmo se hidden for sobrescrito
+}
+
+// Distancia somando os trechos de uma sequencia de pontos (com coordenada)
+function distanciaSequencia(seq) {
+  const pts = (seq || []).filter(p => p && typeof p.lat === 'number' && typeof p.lon === 'number');
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) total += haversineKm(pts[i].lat, pts[i].lon, pts[i+1].lat, pts[i+1].lon);
+  return total;
+}
+// Custo de adicionar uma parada no meio da corrida = km a mais x tarifa/km da categoria
+function custoParadaEmAndamento(parada) {
+  if (!parada || typeof parada.lat !== 'number') return 0;
+  const distAntes = distanciaSequencia(sequenciaRota);
+  const seqNova = sequenciaRota.slice();
+  seqNova.splice(seqNova.length - 1, 0, { lat: parada.lat, lon: parada.lon });
+  const distDepois = distanciaSequencia(seqNova);
+  const kmExtra = Math.max(0, distDepois - distAntes);
+  const cidade = (state.origem && typeof state.origem.lat === 'number') ? detectarCidade(state.origem.lat, state.origem.lon) : 'madre';
+  const tabela = tabelaPrecosCachePorCidade[cidade] || TABELA_PRECOS_PADRAO;
+  const cat = tabela[state.categoriaEscolhida] || TABELA_PRECOS_PADRAO[state.categoriaEscolhida] || TABELA_PRECOS_PADRAO.x;
+  const tarifaKm = Number(cat && cat.tarifaKm) || 0;
+  return Math.round(kmExtra * tarifaKm * 100) / 100;
+}
+
+let paradaSelecionadaModal = null;
+
+document.getElementById('btn-add-stop-ongoing')?.addEventListener('click', () => {
+  document.getElementById('add-stop-modal').hidden = false;
+  const input = document.getElementById('add-stop-input');
+  if (input && !input._wired) {
+    attachAddressAutocomplete(input, (r) => {
+      paradaSelecionadaModal = r;
+      const b = document.getElementById('btn-confirmar-parada');
+      if (b) { const c = custoParadaEmAndamento(r); b.textContent = c > 0 ? ('Confirmar parada (+R$ ' + c.toFixed(2).replace('.', ',') + ')') : 'Confirmar parada'; }
+    }, document.getElementById('add-stop-suggestions'));
+    input._wired = true;
+  }
+  setTimeout(() => input?.focus(), 100);
+});
+
+document.getElementById('add-stop-modal-close')?.addEventListener('click', () => {
+  document.getElementById('add-stop-modal').hidden = true;
+});
+
+document.getElementById('btn-confirmar-parada')?.addEventListener('click', () => {
+  const input = document.getElementById('add-stop-input');
+  const texto = input.value.trim();
+  if (!texto) { showToast('⚠️ Informe o endereço da parada'); return; }
+
+  const novaParada = {
+    texto,
+    lat: paradaSelecionadaModal?.lat || null,
+    lon: paradaSelecionadaModal?.lon || null,
+    tipo: 'parada',
+  };
+
+  // Custo da parada = km a mais x tarifa/km da categoria (calcula ANTES de inserir)
+  const custoExtra = custoParadaEmAndamento(paradaSelecionadaModal);
+
+  // Insere a nova parada antes do destino final (penúltima posição)
+  sequenciaRota.splice(sequenciaRota.length - 1, 0, novaParada);
+  renderRotaAtual();
+
+  // Sincroniza a rota completa no Firebase para o motorista também ver
+  sincronizarRotaNoFirebase();
+
+  // Atualiza o preco da corrida somando o custo da parada
+  if (custoExtra > 0 && firebaseReady && db && state.corridaId && !String(state.corridaId).startsWith('local-')) {
+    fb.updateDoc(fb.doc(db, 'corridas', state.corridaId), { preco: fb.increment(custoExtra) }).catch((e) => console.error('[passageiro] erro ao atualizar preco da parada:', e));
+  }
+
+  const _lbl = custoExtra > 0 ? (' (+R$ ' + custoExtra.toFixed(2).replace('.', ',') + ')') : '';
+  showToast('📍 Parada adicionada: ' + texto + _lbl);
+  enviarMensagemChat('📍 Parada adicional solicitada: ' + texto + _lbl);
+
+  input.value = '';
+  paradaSelecionadaModal = null;
+  const _bc = document.getElementById('btn-confirmar-parada'); if (_bc) _bc.textContent = 'Confirmar parada';
+  document.getElementById('add-stop-modal').hidden = true;
+});
+
+function sincronizarRotaNoFirebase() {
+  if (!firebaseReady || !db || !state.corridaId || String(state.corridaId).startsWith('local-')) return;
+  fb.updateDoc(fb.doc(db, 'corridas', state.corridaId), {
+    sequenciaRota: sequenciaRota,
+    indiceRotaAtual: indiceRotaAtual,
+  }).catch((e) => console.error('[passageiro] erro ao sincronizar rota:', e));
+}
+
+// ─────────────────────────────────────
+// ÚLTIMA CORRIDA (Home)
+// ─────────────────────────────────────
+function renderLastRide() {
+  const historico = getStorageJSON('interliga_corridas', []);
+  if (historico.length === 0) return;
+  const ultima = historico[0];
+  document.getElementById('last-ride-title').textContent = ultima.destino;
+  document.getElementById('last-ride-sub').textContent = new Date(ultima.criadoEm).toLocaleDateString('pt-BR');
+  document.getElementById('last-ride-price').textContent = 'R$ ' + Number(ultima.preco).toFixed(2).replace('.', ',');
+}
+
+async function renderTripsScreen() {
+  const listEl = document.getElementById('trips-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;color:var(--text-soft);padding:20px;">Carregando...</div>';
+
+  let corridas = [];
+
+  // Busca do Firebase (corridas reais finalizadas)
+  if (firebaseReady && db && meuPassageiroId) {
+    try {
+      const snap = await fb.getDocs(fb.query(
+        fb.collection(db, 'corridas'),
+        fb.where('passageiroId', '==', meuPassageiroId),
+        fb.where('status', '==', 'finalizada'),
+        fb.orderBy('criadoEm', 'desc'),
+        fb.limit(50)
+      ));
+      snap.forEach(d => corridas.push({ id: d.id, ...d.data(), _origem: 'firebase' }));
+    } catch (e) {
+      // Se falhar (sem índice), usa o histórico local como fallback
+      corridas = getStorageJSON('interliga_corridas', []);
+      console.warn('[trips] usando histórico local:', e.message);
+    }
+  }
+
+  if (corridas.length === 0) corridas = getStorageJSON('interliga_corridas', []);
+
+  if (corridas.length === 0) {
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🧳</div>
+        <div class="empty-title">Nenhuma viagem ainda</div>
+        <div class="empty-sub">Suas corridas vão aparecer aqui</div>
+      </div>`;
+    return;
+  }
+
+  listEl.innerHTML = corridas.map(c => {
+    const data = c.criadoEm?.toDate ? c.criadoEm.toDate() : new Date(c.criadoEm);
+    const dataFmt = data.toLocaleDateString('pt-BR') + ' · ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const motorista = c.motoristaNome
+      ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--text-soft);">
+          <span>🚗 ${c.motoristaNome}</span>
+          ${c.motoristaVeiculo ? `<span>· ${c.motoristaVeiculo}</span>` : ''}
+          ${c.motoristaPlaca ? `<span>· ${c.motoristaPlaca}</span>` : ''}
+          ${c.motoristaAvaliacao ? `<span style="color:var(--orange);">· ⭐ ${c.motoristaAvaliacao}</span>` : ''}
+        </div>` : '';
+    return `
+      <div class="trip-card">
+        <div class="trip-card-top">
+          <span>${dataFmt}</span>
+          <span class="trip-card-price">R$ ${Number(c.preco||0).toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="trip-card-route">📍 ${c.origem || '—'} → 🏁 ${c.destino || '—'}</div>
+        ${motorista}
+      </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────
+// AGENDAMENTO — calendário
+// ─────────────────────────────────────
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let selectedDay = null;
+let selectedSlot = null;
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const HORARIOS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+
+let schedOrigemSelecionada = null;
+let schedDestinoSelecionada = null;
+
+function onEnterSchedule() {
+  buildCalendar();
+  buildSlots();
+  renderAgendamentos();
+
+  const inputOrigem = document.getElementById('sched-origem');
+  const inputDestino = document.getElementById('sched-destino');
+  const caixaSugestoesAgendamento = document.getElementById('sched-suggestions');
+  if (inputOrigem && !inputOrigem._wired) {
+    attachAddressAutocomplete(inputOrigem, (r) => { schedOrigemSelecionada = r; }, caixaSugestoesAgendamento);
+    inputOrigem._wired = true;
+  }
+  if (inputDestino && !inputDestino._wired) {
+    attachAddressAutocomplete(inputDestino, (r) => { schedDestinoSelecionada = r; }, caixaSugestoesAgendamento);
+    inputDestino._wired = true;
+  }
+}
+
+function renderAgendamentos() {
+  const agendamentos = getStorageJSON('interliga_agendamentos', []);
+  const listEl = document.getElementById('scheduled-list');
+  const emptyEl = document.getElementById('scheduled-empty');
+  if (!listEl) return;
+
+  if (agendamentos.length === 0) {
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  listEl.innerHTML = agendamentos.map((a, i) => `
+    <div class="trip-card">
+      <div class="trip-card-top">
+        <span>📅 ${a.data} · ${a.hora}</span>
+        <button class="cancel-link" style="margin:0;padding:0;font-size:12px;" data-cancel-sched="${i}">Cancelar</button>
+      </div>
+      <div class="trip-card-route">${a.origem} → ${a.destino}</div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('scheduled-list')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-cancel-sched]');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.cancelSched, 10);
+  const agendamentos = getStorageJSON('interliga_agendamentos', []);
+  agendamentos.splice(idx, 1);
+  setStorageJSON('interliga_agendamentos', agendamentos);
+  showToast('Agendamento cancelado');
+  renderAgendamentos();
+});
+
+function buildCalendar() {
+  const grid = document.getElementById('calendar-grid');
+  const label = document.getElementById('cal-month-label');
+  if (!grid || !label) return;
+
+  label.textContent = `${MESES[calMonth]} ${calYear}`;
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+
+  grid.innerHTML = '';
+  for (let i = 0; i < firstDay; i++) {
+    grid.insertAdjacentHTML('beforeend', '<div class="cal-day is-other"></div>');
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const thisDate = new Date(calYear, calMonth, d);
+    const isPast = thisDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+    const classes = ['cal-day'];
+    if (isPast) classes.push('is-past');
+    if (isToday) classes.push('is-today');
+    grid.insertAdjacentHTML('beforeend', `<div class="${classes.join(' ')}" data-day="${d}">${d}</div>`);
+  }
+}
+
+document.getElementById('calendar-grid')?.addEventListener('click', (e) => {
+  const el = e.target.closest('.cal-day');
+  if (!el || el.classList.contains('is-past') || el.classList.contains('is-other')) return;
+  document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('is-selected'));
+  el.classList.add('is-selected');
+  selectedDay = el.dataset.day;
+});
+
+document.getElementById('cal-prev')?.addEventListener('click', () => {
+  calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+  buildCalendar();
+});
+document.getElementById('cal-next')?.addEventListener('click', () => {
+  calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+  buildCalendar();
+});
+
+function buildSlots() {
+  const grid = document.getElementById('slots-grid');
+  if (!grid) return;
+  grid.innerHTML = HORARIOS.map(h => `<div class="slot-item" data-slot="${h}">${h}</div>`).join('');
+}
+
+document.getElementById('slots-grid')?.addEventListener('click', (e) => {
+  const el = e.target.closest('.slot-item');
+  if (!el) return;
+  document.querySelectorAll('.slot-item').forEach(s => s.classList.remove('is-selected'));
+  el.classList.add('is-selected');
+  selectedSlot = el.dataset.slot;
+});
+
+document.getElementById('btn-confirmar-agendamento')?.addEventListener('click', () => {
+  const inputOrigem = document.getElementById('sched-origem');
+  const inputDestino = document.getElementById('sched-destino');
+  const origem = inputOrigem.value.trim();
+  const destino = inputDestino.value.trim();
+
+  if (!selectedDay) { showToast('⚠️ Selecione uma data'); return; }
+  if (!selectedSlot) { showToast('⚠️ Selecione um horário'); return; }
+  if (!origem) { showToast('⚠️ Informe o endereço de embarque'); inputOrigem.focus(); return; }
+  if (!destino) { showToast('⚠️ Informe o destino'); inputDestino.focus(); return; }
+
+  const agendamentos = getStorageJSON('interliga_agendamentos', []);
+  const dataDisparo = new Date(calYear, calMonth, parseInt(selectedDay, 10));
+  const [horaSel, minutoSel] = selectedSlot.split(':').map(Number);
+  dataDisparo.setHours(horaSel, minutoSel || 0, 0, 0);
+
+  agendamentos.unshift({
+    origem, destino,
+    origemLat: schedOrigemSelecionada?.lat || null,
+    origemLon: schedOrigemSelecionada?.lon || null,
+    destinoLat: schedDestinoSelecionada?.lat || null,
+    destinoLon: schedDestinoSelecionada?.lon || null,
+    data: `${selectedDay} de ${MESES[calMonth]}`,
+    hora: selectedSlot,
+    disparoEm: dataDisparo.toISOString(),
+    disparada: false,
+    criadoEm: new Date().toISOString(),
+  });
+  setStorageJSON('interliga_agendamentos', agendamentos.slice(0, 20));
+
+  showToast('✅ Corrida agendada com sucesso!');
+
+  // Limpar formulário e atualizar lista, sem sair da tela
+  inputOrigem.value = '';
+  inputDestino.value = '';
+  schedOrigemSelecionada = null;
+  schedDestinoSelecionada = null;
+  selectedDay = null;
+  selectedSlot = null;
+  document.querySelectorAll('.cal-day.is-selected, .slot-item.is-selected').forEach(el => el.classList.remove('is-selected'));
+  renderAgendamentos();
+});
+
+// ─────────────────────────────────────
+// MULTA — verifica multa pendente do passageiro e credita ao motorista
+// ─────────────────────────────────────
+async function verificarEAplicarMulta(passageiroId, motoristaId, precoCorrente) {
+  if (!passageiroId || !motoristaId || !firebaseReady || !db) return;
+  try {
+    const snap = await fb.getDocs(fb.query(
+      fb.collection(db, 'multas_pendentes'),
+      fb.where('passageiroId', '==', passageiroId),
+      fb.where('status', '==', 'pendente')
+    ));
+    if (snap.empty) return;
+
+    // Tem multa pendente — credita na carteira do motorista que fez essa corrida
+    for (const doc of snap.docs) {
+      const multa = doc.data();
+      // Credita o valor da multa na carteira do motorista
+      await fb.addDoc(fb.collection(db, 'carteira_transacoes'), {
+        motoristaId,
+        tipo: 'multa_recebida',
+        valor: multa.valor || 5.00,
+        descricao: 'Multa de cancelamento recebida',
+        corridaOrigem: multa.corridaId,
+        criadoEm: fb.serverTimestamp(),
+      });
+      // Marca a multa como paga
+      await fb.updateDoc(fb.doc(db, 'multas_pendentes', doc.id), {
+        status: 'paga',
+        corridaPagamento: state.corridaId,
+        pagaEm: fb.serverTimestamp(),
+      });
+    }
+    showToast('💰 Multa aplicada ao motorista!');
+  } catch(e) {
+    console.warn('[multa] erro ao aplicar:', e);
+  }
+}
+
+// ─────────────────────────────────────
+// INICIALIZAÇÃO
+// ─────────────────────────────────────
+// ─────────────────────────────────────
+// DISPARO DE AGENDAMENTOS — quando a hora marcada chega, cria a corrida de
+// verdade e chama motorista, do mesmo jeito que uma corrida pedida na hora.
+// IMPORTANTE: só funciona se o app estiver aberto (em primeiro ou segundo plano)
+// perto do horário marcado — não existe um servidor disparando isso sozinho.
+// ─────────────────────────────────────
+let agendamentosWatchdogInterval = null;
+
+function iniciarVerificacaoAgendamentos() {
+  clearInterval(agendamentosWatchdogInterval);
+  verificarAgendamentosPendentes();
+  agendamentosWatchdogInterval = setInterval(verificarAgendamentosPendentes, 30000);
+}
+
+async function verificarAgendamentosPendentes() {
+  try {
+    const agendamentos = getStorageJSON('interliga_agendamentos', []);
+    if (agendamentos.length === 0) return;
+    const agora = Date.now();
+    let mudou = false;
+
+    for (const ag of agendamentos) {
+      if (ag.disparada || !ag.disparoEm) continue;
+      const momentoDisparo = new Date(ag.disparoEm).getTime();
+      if (agora < momentoDisparo) continue; // ainda não chegou a hora
+
+      ag.disparada = true;
+      mudou = true;
+
+      if (agora - momentoDisparo < 10 * 60 * 1000) {
+        // Chegou a hora (com até 10 min de tolerância) — dispara a corrida de verdade
+        disparaCorridaAgendada(ag);
+      } else {
+        // Passou muito tempo do horário (app ficou fechado) — não dispara tarde, só marca como expirado
+        console.warn('[passageiro] agendamento expirado sem disparar (app estava fechado na hora):', ag);
+      }
+    }
+    if (mudou) setStorageJSON('interliga_agendamentos', agendamentos);
+  } catch (e) { console.warn('[passageiro] erro ao verificar agendamentos:', e); }
+}
+
+function disparaCorridaAgendada(ag) {
+  if (state.corridaId) return; // já tem corrida em andamento, não sobrepõe
+
+  state.origem = { texto: ag.origem, lat: ag.origemLat, lon: ag.origemLon };
+  state.destino = { texto: ag.destino, lat: ag.destinoLat, lon: ag.destinoLon };
+
+  const preco = (ag.origemLat && ag.destinoLat)
+    ? Math.max(8, 5 + haversineKm(ag.origemLat, ag.origemLon, ag.destinoLat, ag.destinoLon) * 2.40)
+    : 18;
+
+  go('screen-tracking');
+  montarSequenciaInicial();
+  document.getElementById('block-searching').hidden = false;
+  document.getElementById('block-driver').hidden = true;
+  document.getElementById('chat-panel').hidden = true;
+  document.getElementById('tracking-title').textContent = '🔔 Corrida agendada — buscando motorista...';
+  document.getElementById('tracking-sub').textContent = 'Aguarde um instante';
+  showToast('🔔 Hora da sua corrida agendada! Chamando motorista...');
+
+  criarCorrida(state.origem, state.destino, preco, 'x');
+}
+
+document.getElementById('btn-editar-perfil-passageiro')?.addEventListener('click', () => {
+  document.getElementById('ed-pax-nome').value = state.passageiro?.nome || '';
+  document.getElementById('ed-pax-celular').value = state.passageiro?.celular || '';
+  go('screen-editar-perfil-passageiro');
+});
+
+document.getElementById('btn-salvar-perfil-passageiro')?.addEventListener('click', async () => {
+  const erroEl = document.getElementById('ed-pax-erro');
+  erroEl.hidden = true;
+  const nome = document.getElementById('ed-pax-nome').value.trim();
+  const celular = document.getElementById('ed-pax-celular').value.trim();
+
+  if (!nome || nome.split(' ').length < 2) { erroEl.textContent = '⚠️ Informe seu nome completo'; erroEl.hidden = false; return; }
+  if (celular.replace(/\D/g, '').length < 10) { erroEl.textContent = '⚠️ Informe um celular válido com DDD'; erroEl.hidden = false; return; }
+  if (!firebaseReady || !db || !meuPassageiroId) { erroEl.textContent = '⚠️ Sem conexão com o servidor'; erroEl.hidden = false; return; }
+
+  const btn = document.getElementById('btn-salvar-perfil-passageiro');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try {
+    await fb.setDoc(fb.doc(db, 'passageiros', meuPassageiroId), { nome, celular }, { merge: true });
+    if (state.passageiro) { state.passageiro.nome = nome; state.passageiro.celular = celular; }
+    document.getElementById('profile-name').textContent = nome;
+    document.getElementById('profile-phone').textContent = celular;
+    const elAvatar = document.querySelector('.profile-avatar');
+    if (elAvatar) elAvatar.textContent = nome.trim().charAt(0).toUpperCase();
+    const elHomeAvatar = document.getElementById('home-avatar');
+    if (elHomeAvatar) elHomeAvatar.textContent = nome.trim().charAt(0).toUpperCase();
+    showToast('✅ Perfil atualizado!');
+    go('screen-profile');
+  } catch (e) {
+    console.error('[passageiro] erro ao salvar perfil:', e);
+    erroEl.textContent = '⚠️ Erro ao salvar — tenta de novo';
+    erroEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar alterações';
+  }
+});
+
+document.getElementById('btn-suporte-passageiro')?.addEventListener('click', () => {
+  const msg = encodeURIComponent('Olá! Preciso de ajuda com o app Interliga.');
+  window.open('https://wa.me/5571981899571?text=' + msg, '_blank');
+});
+
+document.getElementById('btn-sair-passageiro')?.addEventListener('click', async () => {
+  if (!confirm('Sair da sua conta? Você vai precisar fazer login de novo pra voltar a usar o app.')) return;
+  try {
+    if (cadastroPassageiroListenerUnsub) { cadastroPassageiroListenerUnsub(); cadastroPassageiroListenerUnsub = null; }
+    if (authPassageiro) await authModRef.signOut(authPassageiro);
+    meuPassageiroId = null;
+    go('screen-login-passageiro');
+  } catch (e) {
+    console.error('[passageiro] erro ao sair:', e);
+    showToast('⚠️ Erro ao sair, tenta de novo');
+  }
+});
+
+document.getElementById('btn-trocar-para-motorista')?.addEventListener('click', () => {
+  window.location.href = 'motorista.html';
+});
+
+// ─────────────────────────────────────
+// NOTIFICAÇÕES PUSH — recebe aviso (ex: "motorista aceitou") mesmo com o
+// app fechado/em segundo plano (precisa da chave VAPID do Firebase Console)
+// ─────────────────────────────────────
+const VAPID_KEY = 'BNlkkjvYwHosBBv6UWCzKWCB58rNoEP1YrlGFsXetoPFLDMWUNdA2r4VqtD4sHwgdb_yyKbOBydT2dxKDXWrrY4'; // Firebase Console → Configurações do projeto → Cloud Messaging → Web Push certificates
+
+let pushConfigurado = false;
+
+async function configurarNotificacoesPush() {
+  if (pushConfigurado) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[passageiro] notificações push não suportadas neste navegador');
+    return;
+  }
+  if (!fbAppInstancia || !meuPassageiroId || !db) return;
+  if (VAPID_KEY === 'BNlkkjvYwHosBBv6UWCzKWCB58rNoEP1YrlGFsXetoPFLDMWUNdA2r4VqtD4sHwgdb_yyKbOBydT2dxKDXWrrY4') {
+    console.warn('[passageiro] VAPID_KEY ainda não configurada — pulando notificações push');
+    return;
+  }
+
+  try {
+    const permissao = await Notification.requestPermission();
+    if (permissao !== 'granted') {
+      console.warn('[passageiro] permissão de notificação negada pelo usuário');
+      return;
+    }
+
+    const messagingMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
+    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    const messaging = messagingMod.getMessaging(fbAppInstancia);
+    const token = await messagingMod.getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+
+    if (token) {
+      await fb.setDoc(fb.doc(db, 'passageiros', meuPassageiroId), { fcmToken: token }, { merge: true });
+      pushConfigurado = true;
+      console.log('[passageiro] notificações push configuradas');
+    }
+  } catch (e) {
+    console.warn('[passageiro] erro ao configurar notificações push:', e);
+  }
+}
+
+// Intercepta o botão "voltar" do Android (e o gesto de voltar no iOS).
+// Em vez de fechar o app ou sair da página, volta pra tela anterior dentro do app.
+window.addEventListener('popstate', () => {
+  const anterior = historicoNavPassageiro.pop();
+  if (anterior) {
+    // Vai pra tela anterior SEM empurrar no histórico de novo (evita loop)
+    const next = document.getElementById(anterior);
+    if (!next) return;
+    const current = document.querySelector('.screen[data-active="true"]');
+    if (current) current.removeAttribute('data-active');
+    next.setAttribute('data-active', 'true');
+    state.currentScreen = anterior;
+  } else {
+    // Não tem mais histórico interno — empurra um estado vazio pra não fechar o app
+    history.pushState(null, '', '');
+  }
+});
+
+// Estado inicial no histórico — empurrado só UMA VEZ pra não acumular estados.
+// Se empilhasse várias vezes, o botão voltar do Android dispararia o popstate
+// múltiplas vezes antes de funcionar, causando o bug de "voltar ao botão Entrar".
+if (!window._historicoInicializado) {
+  window._historicoInicializado = true;
+  history.pushState(null, '', '');
+}
+
+function boot() {
+  initFirebase(); // assíncrono — quando conectar, chama verificarCadastroPassageiro() se já escolheu ser passageiro
+  iniciarVerificacaoAgendamentos();
+  setTimeout(() => {
+    const papel = localStorage.getItem('interliga_papel');
+    if (!papel) {
+      go('screen-role-choice');
+    } else if (papel === 'motorista') {
+      window.location.href = 'motorista.html';
+    } else {
+      // já escolheu ser passageiro antes — fica no splash mais um instante
+      // até o Firebase responder e verificarCadastroPassageiro() decidir a tela certa
+      if (firebaseReady) verificarCadastroPassageiro();
+    }
+  }, 1500);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
