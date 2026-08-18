@@ -946,3 +946,16 @@ input:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .pulse-ring, .btn-mic.is-recording, .toast { animation: none; transition: none; }
 }
+
+/* ═══════════════════════════════════════
+   MOTORISTA — mapa da home estica pra preencher a tela (evita vão cinza
+   entre o card de ganhos e a barra de baixo). Só afeta o app do motorista,
+   via a classe --driver que só o motorista.html usa.
+═══════════════════════════════════════ */
+.home-map-wrap--driver {
+  flex: 1 1 auto;      /* estica: ocupa toda a sobra de altura */
+  min-height: 180px;   /* nunca colapsa */
+  max-height: none;    /* sem teto: cresce conforme a tela */
+  height: auto;
+}
+.home-map-wrap--driver #map-home-driver { width: 100%; height: 100%; }
