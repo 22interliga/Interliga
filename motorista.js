@@ -351,6 +351,119 @@ window._novaCorridaSegundoPlano = function(corridaId) {
   tocarSomNovaCorrida();
 };
 
+// Abre a corrida quando o motorista toca na notificação FCM.
+window._abrirCorridaPush = async function(corridaId) {
+  try {
+    if (!corridaId) return;
+
+    // Aguarda o Firebase e a sessão do motorista ficarem prontos.
+    const limite = Date.now() + 8000;
+
+    while (
+      (!firebaseReady || !db || !meuMotoristaId) &&
+      Date.now() < limite
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    if (!firebaseReady || !db || !meuMotoristaId) {
+      console.warn(
+        '[motorista] push recebido, mas Firebase/login ainda não ficou pronto:',
+        corridaId
+      );
+
+      showToast(
+        '⚠️ Abra o app novamente para consultar a corrida'
+      );
+
+      return;
+    }
+
+    const snap = await fb.getDoc(
+      fb.doc(db, 'corridas', corridaId)
+    );
+
+    if (!snap.exists()) {
+      showToast(
+        '⚠️ Essa corrida não está mais disponível'
+      );
+      return;
+    }
+
+    const corrida = {
+      id: snap.id,
+      ...snap.data()
+    };
+
+    if (corrida.status !== 'aguardando') {
+      showToast(
+        '⚠️ Essa corrida já não está disponível'
+      );
+      return;
+    }
+
+    // Se existe fila, só abre se ainda for a vez deste motorista.
+    if (
+      corrida.motoristaAlvoAtual &&
+      corrida.motoristaAlvoAtual !== meuMotoristaId
+    ) {
+      showToast(
+        '⏱️ O tempo dessa oferta já terminou'
+      );
+      return;
+    }
+
+    if (
+      corrida.motoristaId &&
+      corrida.motoristaId === meuMotoristaId
+    ) {
+      return;
+    }
+
+    console.log(
+      '[motorista] abrindo corrida recebida via FCM:',
+      corridaId
+    );
+
+    state.online = true;
+
+    const btn =
+      document.getElementById('online-toggle');
+
+    if (btn) {
+      btn.dataset.online = 'true';
+
+      const label =
+        btn.querySelector('.online-label');
+
+      if (label) {
+        label.textContent = 'Online';
+      }
+    }
+
+    state.corridaAtual = corrida;
+    state.corridaAtualId = corrida.id;
+    state.corridaChegouEm = Date.now();
+
+    notificarNovaCorrida(corrida);
+
+    exibirCorridaRecebida(corrida);
+
+    go('screen-request');
+
+  } catch (e) {
+
+    console.error(
+      '[motorista] erro ao abrir corrida via FCM:',
+      e
+    );
+
+    showToast(
+      '⚠️ Não foi possível abrir a corrida'
+    );
+  }
+};
+
 document.getElementById('online-toggle')?.addEventListener('click', () => {
   state.online = !state.online;
   const btn = document.getElementById('online-toggle');
