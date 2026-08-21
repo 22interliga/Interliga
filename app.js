@@ -1204,7 +1204,8 @@ async function criarCorrida(origem, destino, preco, categoria, precoOriginal) {
     cashbackUsado,
     formaPagamento: state.formaPagamento || 'pix',
     passageiroId: meuPassageiroId || null,
-    passageiroNome: localStorage.getItem('interliga_pax_nome') || 'Passageiro',
+    passageiroNome: state.passageiroDados?.nome || state.passageiro?.nome || localStorage.getItem('interliga_pax_nome') || 'Passageiro',
+    passageiroSelfie: state.passageiroDados?.selfie || state.passageiro?.selfie || null,
     status: 'aguardando',
     criadoEm: new Date().toISOString(),
   };

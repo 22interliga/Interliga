@@ -1241,6 +1241,7 @@ async function aceitarCorrida() {
       destino: corrida.destino,
       passageiroId: corrida.passageiroId,
       passageiroNome: corrida.passageiroNome,
+      passageiroSelfie: corrida.passageiroSelfie || null,
       preco: corrida.preco,
       criadoEm: Date.now(),
     }));
@@ -1261,6 +1262,8 @@ async function aceitarCorrida() {
     destino: corrida.destino,
     preco: corrida.preco,
     passageiroNome: corrida.passageiroNome,
+    passageiroSelfie: corrida.passageiroSelfie || null,
+    passageiroId: corrida.passageiroId || null,
     aceitoEm: Date.now(),
   }));
 
@@ -1289,7 +1292,11 @@ function onEnterOngoing() {
   setText('ongoing-origem', corrida.origem);
   setText('ongoing-destino', corrida.destino);
   setText('passenger-name', corrida.passageiroNome || 'Passageiro');
-  setText('passenger-avatar', (corrida.passageiroNome || 'PS').slice(0, 2).toUpperCase());
+
+  const passengerAvatar = document.getElementById('passenger-avatar');
+  const inicialPassageiro = (corrida.passageiroNome || 'PS').slice(0, 2).toUpperCase();
+  renderAvatarMotorista(passengerAvatar, corrida.passageiroSelfie || null, inicialPassageiro);
+
   setText('passenger-rating', '⭐ —');
   setText('passenger-corridas', '');
 
@@ -1303,8 +1310,25 @@ function onEnterOngoing() {
         fb.where('status', '==', 'finalizada')
       )),
     ]).then(([snapPax, snapCorridas]) => {
-      if (snapPax.exists() && snapPax.data().avaliacao) {
-        setText('passenger-rating', '⭐ ' + snapPax.data().avaliacao);
+      if (snapPax.exists()) {
+        const dadosPax = snapPax.data() || {};
+
+        if (dadosPax.nome) {
+          setText('passenger-name', dadosPax.nome);
+        }
+
+        if (dadosPax.selfie) {
+          corrida.passageiroSelfie = dadosPax.selfie;
+          renderAvatarMotorista(
+            passengerAvatar,
+            dadosPax.selfie,
+            (dadosPax.nome || corrida.passageiroNome || 'PS').slice(0, 2).toUpperCase()
+          );
+        }
+
+        if (dadosPax.avaliacao) {
+          setText('passenger-rating', '⭐ ' + dadosPax.avaliacao);
+        }
       }
       const totalCorridas = snapCorridas.size;
       const elCorridas = document.getElementById('passenger-corridas');
