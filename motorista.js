@@ -351,94 +351,60 @@ window._novaCorridaSegundoPlano = function(corridaId) {
   tocarSomNovaCorrida();
 };
 
-// Abre a corrida quando o motorista toca na notificação FCM.
+
+// Abre uma corrida quando o motorista toca na notificação FCM nativa.
+// O MainActivity chama window._abrirCorridaPush(corridaId).
 window._abrirCorridaPush = async function(corridaId) {
   try {
     if (!corridaId) return;
 
-    // Aguarda o Firebase e a sessão do motorista ficarem prontos.
+    // Ao voltar pelo push, o Firebase pode ainda estar restaurando a sessão.
+    // Espera alguns segundos antes de desistir.
     const limite = Date.now() + 8000;
-
-    while (
-      (!firebaseReady || !db || !meuMotoristaId) &&
-      Date.now() < limite
-    ) {
+    while ((!firebaseReady || !db || !meuMotoristaId) && Date.now() < limite) {
       await new Promise(resolve => setTimeout(resolve, 250));
     }
 
     if (!firebaseReady || !db || !meuMotoristaId) {
-      console.warn(
-        '[motorista] push recebido, mas Firebase/login ainda não ficou pronto:',
-        corridaId
-      );
-
-      showToast(
-        '⚠️ Abra o app novamente para consultar a corrida'
-      );
-
+      console.warn('[motorista] push recebido, mas Firebase/login ainda não ficou pronto:', corridaId);
+      showToast('⚠️ Abra o app novamente para consultar a corrida');
       return;
     }
 
-    const snap = await fb.getDoc(
-      fb.doc(db, 'corridas', corridaId)
-    );
-
+    const snap = await fb.getDoc(fb.doc(db, 'corridas', corridaId));
     if (!snap.exists()) {
-      showToast(
-        '⚠️ Essa corrida não está mais disponível'
-      );
+      showToast('⚠️ Essa corrida não está mais disponível');
       return;
     }
 
-    const corrida = {
-      id: snap.id,
-      ...snap.data()
-    };
+    const corrida = { id: snap.id, ...snap.data() };
 
     if (corrida.status !== 'aguardando') {
-      showToast(
-        '⚠️ Essa corrida já não está disponível'
-      );
+      showToast('⚠️ Essa corrida já não está disponível');
       return;
     }
 
-    // Se existe fila, só abre se ainda for a vez deste motorista.
-    if (
-      corrida.motoristaAlvoAtual &&
-      corrida.motoristaAlvoAtual !== meuMotoristaId
-    ) {
-      showToast(
-        '⏱️ O tempo dessa oferta já terminou'
-      );
+    // Se houver fila, só abre a oferta se ainda for a vez deste motorista.
+    if (corrida.motoristaAlvoAtual &&
+        corrida.motoristaAlvoAtual !== meuMotoristaId) {
+      showToast('⏱️ O tempo dessa oferta já terminou');
       return;
     }
 
-    if (
-      corrida.motoristaId &&
-      corrida.motoristaId === meuMotoristaId
-    ) {
+    // Não reapresenta uma corrida que este motorista já aceitou.
+    if (corrida.motoristaId === meuMotoristaId) {
       return;
     }
 
-    console.log(
-      '[motorista] abrindo corrida recebida via FCM:',
-      corridaId
-    );
+    console.log('[motorista] abrindo corrida recebida via FCM:', corridaId);
 
+    // Mantém a UI coerente mesmo quando o processo foi reaberto pelo push.
     state.online = true;
-
-    const btn =
-      document.getElementById('online-toggle');
-
+    const btn = document.getElementById('online-toggle');
     if (btn) {
       btn.dataset.online = 'true';
-
-      const label =
-        btn.querySelector('.online-label');
-
-      if (label) {
-        label.textContent = 'Online';
-      }
+      const label = btn.querySelector('.online-label');
+      if (label) label.textContent = 'Online';
     }
 
     state.corridaAtual = corrida;
@@ -446,21 +412,12 @@ window._abrirCorridaPush = async function(corridaId) {
     state.corridaChegouEm = Date.now();
 
     notificarNovaCorrida(corrida);
-
     exibirCorridaRecebida(corrida);
-
     go('screen-request');
 
   } catch (e) {
-
-    console.error(
-      '[motorista] erro ao abrir corrida via FCM:',
-      e
-    );
-
-    showToast(
-      '⚠️ Não foi possível abrir a corrida'
-    );
+    console.error('[motorista] erro ao abrir corrida via FCM:', e);
+    showToast('⚠️ Não foi possível abrir a corrida');
   }
 };
 
