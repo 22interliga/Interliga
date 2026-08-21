@@ -47,6 +47,8 @@ const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interli
         meuMotoristaId = user.uid;
         verificarCadastroMotorista();
       } else {
+        // Se perdeu a sessão, o serviço nativo não pode continuar anunciando corridas.
+        try { encerrarOperacaoMotorista(); } catch (e) {}
         meuMotoristaId = null;
         // Aguarda 800ms antes de redirecionar pro login
         // Isso evita o loop quando o app volta de outra aba ou é reaberto
@@ -427,6 +429,32 @@ window._abrirCorridaPush = async function(corridaId) {
   }
 };
 
+function encerrarOperacaoMotorista() {
+  // Força o estado local para Offline e encerra TUDO que pode continuar alertando.
+  state.online = false;
+
+  try { pararEscutaCorridas(); } catch (e) {}
+  try { pararDisponibilidade(); } catch (e) {}
+  try { pararEscutaOferta(); } catch (e) {}
+  try { clearInterval(state.countdownInterval); } catch (e) {}
+  try { clearInterval(state.somRepeticaoInterval); } catch (e) {}
+  try { window.speechSynthesis?.cancel(); } catch (e) {}
+
+  if (window.AndroidNative?.desativarSegundoPlano) {
+    try { window.AndroidNative.desativarSegundoPlano(); } catch (e) {}
+  }
+  if (window.AndroidNative?.pararMonitorSegundoPlano) {
+    try { window.AndroidNative.pararMonitorSegundoPlano(); } catch (e) {}
+  }
+
+  const btn = document.getElementById('online-toggle');
+  if (btn) {
+    btn.dataset.online = 'false';
+    const label = btn.querySelector('.online-label');
+    if (label) label.textContent = 'Offline';
+  }
+}
+
 document.getElementById('online-toggle')?.addEventListener('click', () => {
   state.online = !state.online;
   const btn = document.getElementById('online-toggle');
@@ -452,10 +480,7 @@ document.getElementById('online-toggle')?.addEventListener('click', () => {
     }
   } else {
     showToast('🔴 Você está offline');
-    pararEscutaCorridas();
-    pararDisponibilidade();
-    if (window.AndroidNative?.desativarSegundoPlano) window.AndroidNative.desativarSegundoPlano();
-    if (window.AndroidNative?.pararMonitorSegundoPlano) window.AndroidNative.pararMonitorSegundoPlano();
+    encerrarOperacaoMotorista();
   }
 });
 
@@ -2413,9 +2438,7 @@ async function verificarCadastroMotorista() {
 async function aplicarStatusCadastroMotorista(dados) {
   if (dados.bloqueado === true) {
     // Força offline na hora — não pode continuar recebendo corridas se foi bloqueado
-    state.online = false;
-    pararEscutaCorridas();
-    pararDisponibilidade();
+    encerrarOperacaoMotorista();
     const btnOnline = document.getElementById('online-toggle');
     if (btnOnline) { btnOnline.dataset.online = 'false'; btnOnline.querySelector('.online-label').textContent = 'Offline'; }
     const elMotivo = document.getElementById('bloqueio-mot-motivo-texto');
@@ -2536,10 +2559,7 @@ document.getElementById('btn-suporte-motorista')?.addEventListener('click', () =
 document.getElementById('btn-sair-motorista')?.addEventListener('click', async () => {
   if (!confirm('Sair da sua conta? Você vai precisar fazer login de novo pra voltar a usar o app.')) return;
   try {
-    if (state.online) {
-      pararEscutaCorridas();
-      pararDisponibilidade();
-    }
+    encerrarOperacaoMotorista();
     if (authMotorista) await authModRef.signOut(authMotorista);
     meuMotoristaId = null;
     go('screen-login-motorista');
@@ -2550,6 +2570,9 @@ document.getElementById('btn-sair-motorista')?.addEventListener('click', async (
 });
 
 document.getElementById('btn-trocar-para-passageiro')?.addEventListener('click', () => {
+  // Ao sair do papel motorista, encerra o monitor/voz de corridas.
+  encerrarOperacaoMotorista();
+
   // Precisa marcar o papel como 'passageiro' antes de voltar — senão o
   // index.html detecta 'motorista' salvo e manda de volta pra cá na hora.
   localStorage.setItem('interliga_papel', 'passageiro');
