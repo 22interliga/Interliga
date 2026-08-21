@@ -961,55 +961,172 @@ document.addEventListener('click', (e) => {
   }
 });
 
+
+async function geocodificarEnderecoOferta(texto) {
+  if (!texto || typeof texto !== 'string') return null;
+  try {
+    const params = new URLSearchParams({
+      q: texto,
+      format: 'json',
+      limit: '1',
+      countrycodes: 'br'
+    });
+    const resp = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString(), {
+      headers: { 'Accept-Language': 'pt-BR' }
+    });
+    if (!resp.ok) return null;
+    const lista = await resp.json();
+    if (!Array.isArray(lista) || !lista[0]) return null;
+    const lat = Number(lista[0].lat);
+    const lon = Number(lista[0].lon);
+    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+  } catch (e) {
+    console.warn('[motorista] falha ao geocodificar oferta:', e);
+    return null;
+  }
+}
+
+async function calcularRotaOferta(lat1, lon1, lat2, lon2) {
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false&alternatives=false&steps=false`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const rota = data?.routes?.[0];
+    if (!rota) return null;
+    return {
+      km: Number(rota.distance || 0) / 1000,
+      min: Math.max(1, Math.round(Number(rota.duration || 0) / 60))
+    };
+  } catch (e) {
+    console.warn('[motorista] falha ao calcular rota da oferta:', e);
+    return null;
+  }
+}
+
+async function garantirCoordenadasOferta(corrida) {
+  let origemLat = Number(corrida.origemLat);
+  let origemLon = Number(corrida.origemLon);
+  let destinoLat = Number(corrida.destinoLat);
+  let destinoLon = Number(corrida.destinoLon);
+
+  const origemValida = Number.isFinite(origemLat) && Number.isFinite(origemLon) &&
+    Math.abs(origemLat) > 0.00001 && Math.abs(origemLon) > 0.00001;
+  const destinoValido = Number.isFinite(destinoLat) && Number.isFinite(destinoLon) &&
+    Math.abs(destinoLat) > 0.00001 && Math.abs(destinoLon) > 0.00001;
+
+  if (!origemValida) {
+    const geo = await geocodificarEnderecoOferta(corrida.origem);
+    if (geo) {
+      origemLat = geo.lat;
+      origemLon = geo.lon;
+      corrida.origemLat = geo.lat;
+      corrida.origemLon = geo.lon;
+    }
+  }
+
+  if (!destinoValido) {
+    const geo = await geocodificarEnderecoOferta(corrida.destino);
+    if (geo) {
+      destinoLat = geo.lat;
+      destinoLon = geo.lon;
+      corrida.destinoLat = geo.lat;
+      corrida.destinoLon = geo.lon;
+    }
+  }
+
+  return {
+    origemLat, origemLon, destinoLat, destinoLon,
+    origemValida: Number.isFinite(origemLat) && Number.isFinite(origemLon),
+    destinoValido: Number.isFinite(destinoLat) && Number.isFinite(destinoLon)
+  };
+}
+
+async function atualizarMetricasOferta(corrida) {
+  const elAtePax = document.getElementById('request-ate-pax');
+  const elTempo = document.getElementById('request-tempo');
+  const elDistancia = document.getElementById('request-distancia');
+
+  if (elAtePax) elAtePax.textContent = 'Calculando...';
+  if (elTempo) elTempo.textContent = 'Calculando...';
+  if (elDistancia) elDistancia.textContent = 'Calculando...';
+
+  const coords = await garantirCoordenadasOferta(corrida);
+
+  // Distância total da corrida
+  if (coords.origemValida && coords.destinoValido) {
+    const rotaCorrida = await calcularRotaOferta(
+      coords.origemLat, coords.origemLon,
+      coords.destinoLat, coords.destinoLon
+    );
+    if (rotaCorrida && rotaCorrida.km > 0) {
+      if (elDistancia) elDistancia.textContent = rotaCorrida.km.toFixed(1) + ' km';
+      corrida.distanciaKmCalculada = rotaCorrida.km;
+    } else {
+      const km = haversineKm(coords.origemLat, coords.origemLon, coords.destinoLat, coords.destinoLon);
+      if (elDistancia) elDistancia.textContent = km.toFixed(1) + ' km';
+    }
+  } else if (elDistancia) {
+    elDistancia.textContent = '—';
+  }
+
+  // Posição do motorista -> passageiro
+  let mLat = Number(state.motoristaLat);
+  let mLon = Number(state.motoristaLon);
+
+  if ((!Number.isFinite(mLat) || !Number.isFinite(mLon)) && navigator.geolocation) {
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 30000
+        });
+      });
+      mLat = pos.coords.latitude;
+      mLon = pos.coords.longitude;
+      state.motoristaLat = mLat;
+      state.motoristaLon = mLon;
+    } catch (e) {
+      console.warn('[motorista] GPS indisponível para calcular distância até passageiro:', e);
+    }
+  }
+
+  if (Number.isFinite(mLat) && Number.isFinite(mLon) && coords.origemValida) {
+    const rotaBusca = await calcularRotaOferta(mLat, mLon, coords.origemLat, coords.origemLon);
+    if (rotaBusca && rotaBusca.km >= 0) {
+      if (elAtePax) elAtePax.textContent = rotaBusca.km.toFixed(1) + ' km';
+      if (elTempo) elTempo.textContent = '~' + rotaBusca.min + ' min';
+    } else {
+      const kmAte = haversineKm(mLat, mLon, coords.origemLat, coords.origemLon);
+      if (elAtePax) elAtePax.textContent = kmAte.toFixed(1) + ' km';
+      if (elTempo) elTempo.textContent = '~' + Math.max(1, Math.round((kmAte / 25) * 60)) + ' min';
+    }
+  } else {
+    if (elAtePax) elAtePax.textContent = '—';
+    if (elTempo) elTempo.textContent = '—';
+  }
+}
+
 function exibirCorridaRecebida(corrida) {
   document.getElementById('request-empty').hidden = true;
   document.getElementById('request-card').hidden = false;
 
-  document.getElementById('request-origem').textContent = corrida.origem;
-  document.getElementById('request-destino').textContent = corrida.destino;
-  document.getElementById('request-valor').textContent = 'R$ ' + Number(corrida.preco || 18).toFixed(2).replace('.', ',');
+  document.getElementById('request-origem').textContent = corrida.origem || 'Origem';
+  document.getElementById('request-destino').textContent = corrida.destino || 'Destino';
+  document.getElementById('request-valor').textContent =
+    'R$ ' + Number(corrida.preco || 18).toFixed(2).replace('.', ',');
 
-  if (corrida.origemLat && corrida.destinoLat) {
-    const km = haversineKm(corrida.origemLat, corrida.origemLon, corrida.destinoLat, corrida.destinoLon);
-    document.getElementById('request-distancia').textContent = km.toFixed(1) + ' km';
-  } else {
-    document.getElementById('request-distancia').textContent = '-- km';
-  }
-
-  // Distancia do motorista ate o passageiro + tempo estimado ate busca-lo
-  const elAtePax = document.getElementById('request-ate-pax');
-  const elTempo = document.getElementById('request-tempo');
-  if (elAtePax && elTempo) {
-    const temOrigem = typeof corrida.origemLat === 'number' && typeof corrida.origemLon === 'number';
-    const mostrarAte = (mLat, mLon) => {
-      const kmAte = haversineKm(mLat, mLon, corrida.origemLat, corrida.origemLon);
-      elAtePax.textContent = kmAte.toFixed(1) + ' km';
-      elTempo.textContent = '~' + Math.max(1, Math.round((kmAte / 25) * 60)) + ' min'; // ~25 km/h media urbana
-    };
-    if (typeof state.motoristaLat === 'number' && temOrigem) {
-      mostrarAte(state.motoristaLat, state.motoristaLon);
-    } else if (temOrigem && navigator.geolocation) {
-      // Sem posicao ainda: tenta pegar o GPS uma vez; se nao vier em 8s, mostra tracinho.
-      elAtePax.textContent = 'Calculando...';
-      elTempo.textContent = 'Calculando...';
-      navigator.geolocation.getCurrentPosition(
-        (pos) => { state.motoristaLat = pos.coords.latitude; state.motoristaLon = pos.coords.longitude; mostrarAte(pos.coords.latitude, pos.coords.longitude); },
-        () => { elAtePax.textContent = '\u2014'; elTempo.textContent = '\u2014'; },
-        { timeout: 8000, maximumAge: 60000 }
-      );
-    } else {
-      elAtePax.textContent = '\u2014';
-      elTempo.textContent = '\u2014';
-    }
-  }
-
-  // Mostra info do passageiro no card de oferta
+  // Passageiro: foto, nome, avaliação e histórico.
   const nomePax = corrida.passageiroNome || 'Passageiro';
   const elPaxNome = document.getElementById('request-pax-nome');
   const elPaxAvatar = document.getElementById('request-pax-avatar');
   const elPaxStats = document.getElementById('request-pax-stats');
+  const inicialPax = nomePax.slice(0, 2).toUpperCase();
+
   if (elPaxNome) elPaxNome.textContent = nomePax;
-  if (elPaxAvatar) elPaxAvatar.textContent = nomePax.slice(0, 2).toUpperCase();
+  renderAvatarMotorista(elPaxAvatar, corrida.passageiroSelfie || null, inicialPax);
   if (elPaxStats) elPaxStats.textContent = 'Carregando...';
 
   if (corrida.passageiroId && firebaseReady && db) {
@@ -1021,17 +1138,53 @@ function exibirCorridaRecebida(corrida) {
         fb.where('status', '==', 'finalizada')
       )),
     ]).then(([snapPax, snapCorridas]) => {
-      const avaliacao = snapPax.exists() ? snapPax.data().avaliacao : null;
+      let avaliacao = null;
+
+      if (snapPax.exists()) {
+        const dadosPax = snapPax.data() || {};
+        avaliacao = dadosPax.avaliacao || null;
+
+        if (dadosPax.nome) {
+          corrida.passageiroNome = dadosPax.nome;
+          if (elPaxNome) elPaxNome.textContent = dadosPax.nome;
+        }
+
+        if (dadosPax.selfie) {
+          corrida.passageiroSelfie = dadosPax.selfie;
+          renderAvatarMotorista(
+            elPaxAvatar,
+            dadosPax.selfie,
+            (dadosPax.nome || nomePax).slice(0, 2).toUpperCase()
+          );
+        }
+      }
+
       const total = snapCorridas.size;
       if (elPaxStats) {
-        const estrelas = avaliacao ? `⭐ ${avaliacao}` : '';
-        const corridas = total === 0 ? '🆕 Primeira corrida!' : `🚗 ${total} corrida${total > 1 ? 's' : ''}`;
-        elPaxStats.textContent = [estrelas, corridas].filter(Boolean).join(' · ');
+        const estrelas = avaliacao ? `⭐ ${avaliacao}` : '⭐ Sem avaliações';
+        const corridas = total === 0
+          ? '🆕 Primeira corrida'
+          : `🚗 ${total} corrida${total > 1 ? 's' : ''}`;
+        elPaxStats.textContent = `${estrelas} · ${corridas}`;
       }
-    }).catch(() => {
+    }).catch((e) => {
+      console.warn('[motorista] erro ao carregar dados do passageiro na oferta:', e);
       if (elPaxStats) elPaxStats.textContent = '—';
     });
+  } else if (elPaxStats) {
+    elPaxStats.textContent = '—';
   }
+
+  // Calcula rota/distâncias sem bloquear a exibição do card.
+  atualizarMetricasOferta(corrida).catch((e) => {
+    console.warn('[motorista] erro nas métricas da oferta:', e);
+    const ate = document.getElementById('request-ate-pax');
+    const tempo = document.getElementById('request-tempo');
+    const dist = document.getElementById('request-distancia');
+    if (ate) ate.textContent = '—';
+    if (tempo) tempo.textContent = '—';
+    if (dist) dist.textContent = '—';
+  });
 
   iniciarCountdown();
 }
