@@ -1,4 +1,122 @@
-async function criarCorrida(origem, destino, preco, categoria, precoOriginal) {
+export function attachAddressAutocomplete(inputEl, onSelect, suggestionsBoxParam) {
+  const suggestionsBox =
+    suggestionsBoxParam ||
+    inputEl.closest('.form-card')?.querySelector('.address-suggestions');
+
+  if (!suggestionsBox) return;
+
+  const jaTemBotaoProprio =
+    inputEl.parentElement?.querySelector('.stop-remove');
+
+  let btnLimpar = null;
+
+  if (!jaTemBotaoProprio) {
+    btnLimpar = document.createElement('span');
+    btnLimpar.className = 'address-clear-btn';
+    btnLimpar.textContent = '✕';
+    inputEl.insertAdjacentElement('afterend', btnLimpar);
+  }
+
+  function atualizarVisibilidadeLimpar() {
+    if (btnLimpar) {
+      btnLimpar.style.display =
+        inputEl.value.trim() ? 'flex' : 'none';
+    }
+  }
+
+  atualizarVisibilidadeLimpar();
+
+  if (btnLimpar) {
+    btnLimpar.addEventListener('click', () => {
+      inputEl.value = '';
+      atualizarVisibilidadeLimpar();
+      suggestionsBox.classList.remove('is-open');
+      onSelect(null);
+      inputEl.focus();
+    });
+  }
+
+  const search = debounce(async () => {
+    const termo = inputEl.value;
+    const results = await buscarEnderecos(termo);
+
+    if (results.length === 0) {
+      suggestionsBox.classList.remove('is-open');
+      suggestionsBox.innerHTML = '';
+      return;
+    }
+
+    suggestionsBox.innerHTML = results.map((r, i) =>
+      `<div class="suggestion-item" data-idx="${i}">${r.texto}</div>`
+    ).join('');
+
+    suggestionsBox.classList.add('is-open');
+    suggestionsBox._results = results;
+    suggestionsBox._activeInput = inputEl;
+  }, 400);
+
+  inputEl.addEventListener('focus', () => {
+    suggestionsBox._activeInput = inputEl;
+  });
+
+  inputEl.addEventListener('input', () => {
+    search();
+    atualizarVisibilidadeLimpar();
+  });
+
+  inputEl.addEventListener('blur', () => {
+    setTimeout(() => {
+      const textoAtual = inputEl.value.trim();
+
+      if (textoAtual && textoAtual.length >= 3) {
+        const resultAtual =
+          suggestionsBox._results?.find(
+            r => r.texto === textoAtual
+          );
+
+        if (!resultAtual) {
+          onSelect({
+            texto: textoAtual,
+            lat: null,
+            lon: null
+          });
+        }
+      }
+
+      suggestionsBox.classList.remove('is-open');
+    }, 200);
+  });
+
+  suggestionsBox.addEventListener('click', (e) => {
+    const item = e.target.closest('.suggestion-item');
+    if (!item) return;
+
+    if (suggestionsBox._activeInput !== inputEl) return;
+
+    const idx = parseInt(item.dataset.idx, 10);
+    const result = suggestionsBox._results[idx];
+
+    inputEl.value = result.texto;
+    suggestionsBox.classList.remove('is-open');
+    atualizarVisibilidadeLimpar();
+
+    onSelect(result);
+  });
+
+  const containerPai =
+    inputEl.closest('.form-card') ||
+    inputEl.closest('.address-field') ||
+    inputEl.parentElement;
+
+  document.addEventListener('click', (e) => {
+    if (
+      containerPai &&
+      !containerPai.contains(e.target)
+    ) {
+      suggestionsBox.classList.remove('is-open');
+    }
+  });
+}async function criarCorrida(origem, destino, preco, categoria, precoOriginal) {
 
   // Garante que nunca sejam enviados valores undefined ao Firestore
   origem = origem || {};
