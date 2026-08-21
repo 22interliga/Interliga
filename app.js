@@ -1,7 +1,7 @@
 // ============================================================
 // NAVEGAÇÃO
 // ============================================================
-export function attachAddressAutocomplete(inputEl, onSelect, suggestionsBoxParam) {
+
 export function go(screenId) {
 
   const next = document.getElementById(screenId);
