@@ -217,7 +217,7 @@ const state = {
   countdownSegundos: 15,
   corridasListenerUnsub: null,
   chatListenerUnsub: null,
-  motorista: { nome: 'Motorista', avaliacao: '4.8', veiculo: 'Honda Civic', placa: 'ABC-1234' },
+  motorista: { nome: 'Motorista', avaliacao: '4.8', veiculo: 'Honda Civic', placa: 'ABC-1234', selfie: null },
   historico: [],
 };
 
@@ -1210,6 +1210,7 @@ async function aceitarCorrida() {
           motoristaVeiculo: state.motorista.veiculo,
           motoristaPlaca: state.motorista.placa,
           motoristaAvaliacao: state.motorista.avaliacao,
+          motoristaSelfie: state.motorista.selfie || null,
         });
         return true;
       });
@@ -2284,6 +2285,7 @@ document.getElementById('btn-enviar-cadastro-motorista')?.addEventListener('clic
     state.motorista.veiculo = veiculo;
     state.motorista.placa = placa;
     state.motorista.cidade = cidade;
+    state.motorista.selfie = fotosCadastroMotorista.selfie;
     mostrarTelaAguardandoAprovacaoMotorista();
   } catch (e) {
     console.error('[motorista] erro ao enviar cadastro:', e);
@@ -2351,6 +2353,26 @@ document.getElementById('link-esqueci-senha-mot')?.addEventListener('click', asy
 // ─────────────────────────────────────
 let cadastroMotoristaListenerUnsub = null;
 
+
+function renderAvatarMotorista(elemento, foto, fallback = 'M') {
+  if (!elemento) return;
+  elemento.innerHTML = '';
+
+  if (foto) {
+    const img = document.createElement('img');
+    img.src = foto;
+    img.alt = 'Foto de perfil';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover';
+    img.style.borderRadius = '50%';
+    img.style.display = 'block';
+    elemento.appendChild(img);
+  } else {
+    elemento.textContent = fallback || 'M';
+  }
+}
+
 async function verificarCadastroMotorista() {
   if (!firebaseReady || !db) return;
   try {
@@ -2367,6 +2389,8 @@ async function verificarCadastroMotorista() {
     if (dados.cidade) state.motorista.cidade = dados.cidade;
     if (dados.cpf) state.motorista.cpf = dados.cpf;
     if (dados.email) state.motorista.email = dados.email;
+    state.motorista.selfie = dados.selfie || null;
+    if (dados.avaliacao) state.motorista.avaliacao = dados.avaliacao;
     state.motorista.categoria = dados.categoria || 'x';
     state.motorista.categorias = Array.isArray(dados.categorias) ? dados.categorias : [state.motorista.categoria];
     const nomesCategoria = { x: 'Interliga X', plus: 'Interliga Plus', van: 'Interliga Van' };
@@ -2379,13 +2403,15 @@ async function verificarCadastroMotorista() {
     const elTelefone = document.getElementById('profile-driver-phone');
     if (elTelefone) elTelefone.textContent = state.motorista.celular || '—';
     const elAvatar = document.getElementById('profile-driver-avatar');
-    if (elAvatar) {
-      if (dados.selfie) {
-        elAvatar.innerHTML = `<img src="${dados.selfie}" alt="Foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-      } else {
-        elAvatar.textContent = (state.motorista.nome || 'M').trim().charAt(0).toUpperCase();
-      }
-    }
+    const elHomeAvatar = document.getElementById('driver-home-avatar');
+    const inicialMotorista = (state.motorista.nome || 'M').trim().charAt(0).toUpperCase();
+    renderAvatarMotorista(elAvatar, state.motorista.selfie, inicialMotorista);
+    renderAvatarMotorista(elHomeAvatar, state.motorista.selfie, inicialMotorista);
+
+    const elHomeNome = document.getElementById('driver-home-name');
+    if (elHomeNome) elHomeNome.textContent = state.motorista.nome || 'Motorista';
+    const elHomeAvaliacao = document.getElementById('driver-home-rating');
+    if (elHomeAvaliacao) elHomeAvaliacao.textContent = state.motorista.avaliacao || '—';
     const inputFotoMot = document.getElementById('input-trocar-foto-mot');
     if (inputFotoMot && !inputFotoMot._wiredPerfil) {
       inputFotoMot._wiredPerfil = true;
@@ -2411,7 +2437,9 @@ async function verificarCadastroMotorista() {
             reader.onerror = reject; reader.readAsDataURL(file);
           });
           await fb.setDoc(fb.doc(db, 'motoristas', meuMotoristaId), { selfie: novaFoto }, { merge: true });
-          if (elAvatar) elAvatar.innerHTML = `<img src="${novaFoto}" alt="Foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+          state.motorista.selfie = novaFoto;
+          renderAvatarMotorista(elAvatar, novaFoto, inicialMotorista);
+          renderAvatarMotorista(elHomeAvatar, novaFoto, inicialMotorista);
           showToast('✅ Foto atualizada!');
         } catch (err) { showToast('⚠️ Erro ao atualizar foto'); }
       });
@@ -2594,8 +2622,8 @@ async function configurarNotificacoesPush() {
     return;
   }
   if (!fbAppInstancia || !meuMotoristaId || !db) return;
-  if (VAPID_KEY === 'BNlkkjvYwHosBBv6UWCzKWCB58rNoEP1YrlGFsXetoPFLDMWUNdA2r4VqtD4sHwgdb_yyKbOBydT2dxKDXWrrY4') {
-    console.warn('[motorista] VAPID_KEY ainda não configurada — pulando notificações push');
+  if (!VAPID_KEY || VAPID_KEY.length < 50) {
+    console.warn('[motorista] VAPID_KEY inválida — pulando notificações push');
     return;
   }
 

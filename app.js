@@ -68,7 +68,6 @@ async function initFirebase() {
 
     firebaseReady = true;
     console.log('✅ Firebase conectado');
-    carregarConfigCashback();
 
     // Expõe pro food.js usar — são módulos separados (sem import circular entre eles)
     window.db = db;
@@ -82,6 +81,11 @@ async function initFirebase() {
         _loginEmAndamento = false; // login confirmado — limpa a flag
         meuPassageiroId = user.uid;
         window.meuPassageiroId = user.uid;
+
+        // As regras de /configuracoes exigem usuário autenticado.
+        // Carrega o cashback somente depois que o Firebase Auth confirmou a sessão.
+        carregarConfigCashback();
+
         verificarCadastroPassageiro();
       } else {
         meuPassageiroId = null;
@@ -1420,6 +1424,7 @@ function ouvirAceiteCorrida(corridaId) {
         placa: data.motoristaPlaca || '',
         avaliacao: data.motoristaAvaliacao || '4.8',
         motoristaId: data.motoristaId || null,
+        selfie: data.motoristaSelfie || null,
       });
       // Guarda o nome do motorista no histórico local assim que aceita (não precisa esperar finalizar)
       atualizarStatusHistoricoLocal('aceita', { motoristaNome: data.motoristaNome || 'Motorista', motoristaVeiculo: data.motoristaVeiculo, motoristaPlaca: data.motoristaPlaca });
@@ -1579,7 +1584,7 @@ async function enviarAvaliacao(tipo, paraId, nota, comentario, corridaId) {
   }
 }
 
-function exibirMotoristaEncontrado({ nome, veiculo, placa, avaliacao, motoristaId }) {
+function exibirMotoristaEncontrado({ nome, veiculo, placa, avaliacao, motoristaId, selfie = null }) {
   timestampAceite = Date.now(); // marca o momento do aceite para calcular multa de cancelamento
   state.motoristaIdDaCorrida = motoristaId || null;
   document.getElementById('block-searching').hidden = true;
@@ -1590,7 +1595,20 @@ function exibirMotoristaEncontrado({ nome, veiculo, placa, avaliacao, motoristaI
   document.getElementById('tracking-sub').textContent = 'A caminho do seu local';
   document.getElementById('tracking-eta').textContent = '4 min';
 
-  document.getElementById('driver-avatar').textContent = nome.slice(0, 2).toUpperCase();
+  const driverAvatar = document.getElementById('driver-avatar');
+  const inicialMotorista = (nome || 'Motorista').slice(0, 2).toUpperCase();
+  renderAvatarInterliga(driverAvatar, selfie, inicialMotorista);
+
+  // Compatibilidade com corridas antigas: se a corrida não tiver a selfie,
+  // busca diretamente no cadastro permanente do motorista.
+  if (!selfie && motoristaId && firebaseReady && db) {
+    fb.getDoc(fb.doc(db, 'motoristas', motoristaId)).then((snapMot) => {
+      if (!snapMot.exists()) return;
+      const foto = snapMot.data()?.selfie || null;
+      if (foto) renderAvatarInterliga(driverAvatar, foto, inicialMotorista);
+    }).catch((e) => console.warn('[passageiro] não foi possível carregar selfie do motorista:', e));
+  }
+
   document.getElementById('driver-name').textContent = nome;
   document.getElementById('driver-detail').textContent = `⭐ ${avaliacao} · ${veiculo} · ${placa}`;
   document.getElementById('driver-status').textContent = '🟢 A caminho';
@@ -2202,16 +2220,35 @@ async function verificarCadastroPassageiro() {
   }
 }
 
+
+function renderAvatarInterliga(elemento, foto, fallback = 'M') {
+  if (!elemento) return;
+  elemento.innerHTML = '';
+
+  if (foto) {
+    const img = document.createElement('img');
+    img.src = foto;
+    img.alt = 'Foto de perfil';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover';
+    img.style.borderRadius = '50%';
+    img.style.display = 'block';
+    elemento.appendChild(img);
+  } else {
+    elemento.textContent = fallback || 'M';
+  }
+}
+
 function aplicarStatusCadastro(dados) {
   state.passageiroDados = dados;
 
-  // Foto de perfil real
+  // Foto de perfil real — perfil e Home usam a mesma selfie.
   const avatarInner = document.getElementById('profile-avatar-inner');
-  if (avatarInner && dados.selfie) {
-    avatarInner.innerHTML = `<img src="${dados.selfie}" alt="Foto">`;
-  } else if (avatarInner && dados.nome) {
-    avatarInner.textContent = dados.nome.trim().charAt(0).toUpperCase();
-  }
+  const homeAvatar = document.getElementById('home-avatar');
+  const inicialPassageiro = (dados.nome || 'M').trim().charAt(0).toUpperCase();
+  renderAvatarInterliga(avatarInner, dados.selfie || null, inicialPassageiro);
+  renderAvatarInterliga(homeAvatar, dados.selfie || null, inicialPassageiro);
 
   // Troca de foto pelo perfil
   const inputFoto = document.getElementById('input-trocar-foto-pax');
@@ -2224,7 +2261,11 @@ function aplicarStatusCadastro(dados) {
         showToast('📷 Atualizando foto...');
         const novaFoto = await comprimirImagemArquivo(file);
         await fb.setDoc(fb.doc(db, 'passageiros', meuPassageiroId), { selfie: novaFoto }, { merge: true });
-        if (avatarInner) avatarInner.innerHTML = `<img src="${novaFoto}" alt="Foto">`;
+        dados.selfie = novaFoto;
+        if (state.passageiroDados) state.passageiroDados.selfie = novaFoto;
+        if (state.passageiro) state.passageiro.selfie = novaFoto;
+        renderAvatarInterliga(avatarInner, novaFoto, inicialPassageiro);
+        renderAvatarInterliga(homeAvatar, novaFoto, inicialPassageiro);
         showToast('✅ Foto atualizada!');
       } catch (err) {
         showToast('⚠️ Erro ao atualizar foto');
@@ -2241,10 +2282,11 @@ function aplicarStatusCadastro(dados) {
     if (dados.nome) {
       const elNome = document.getElementById('profile-name');
       if (elNome) elNome.textContent = dados.nome;
-      const elAvatar = document.querySelector('.profile-avatar');
-      if (elAvatar) elAvatar.textContent = dados.nome.trim().charAt(0).toUpperCase();
+      const elAvatar = document.getElementById('profile-avatar-inner');
       const elHomeAvatar = document.getElementById('home-avatar');
-      if (elHomeAvatar) elHomeAvatar.textContent = dados.nome.trim().charAt(0).toUpperCase();
+      const inicial = dados.nome.trim().charAt(0).toUpperCase();
+      renderAvatarInterliga(elAvatar, dados.selfie || null, inicial);
+      renderAvatarInterliga(elHomeAvatar, dados.selfie || null, inicial);
     }
     if (dados.celular) {
       const elTelefone = document.getElementById('profile-phone');
@@ -3060,10 +3102,12 @@ document.getElementById('btn-salvar-perfil-passageiro')?.addEventListener('click
     if (state.passageiro) { state.passageiro.nome = nome; state.passageiro.celular = celular; }
     document.getElementById('profile-name').textContent = nome;
     document.getElementById('profile-phone').textContent = celular;
-    const elAvatar = document.querySelector('.profile-avatar');
-    if (elAvatar) elAvatar.textContent = nome.trim().charAt(0).toUpperCase();
+    const elAvatar = document.getElementById('profile-avatar-inner');
     const elHomeAvatar = document.getElementById('home-avatar');
-    if (elHomeAvatar) elHomeAvatar.textContent = nome.trim().charAt(0).toUpperCase();
+    const fotoAtual = state.passageiro?.selfie || state.passageiroDados?.selfie || null;
+    const inicial = nome.trim().charAt(0).toUpperCase();
+    renderAvatarInterliga(elAvatar, fotoAtual, inicial);
+    renderAvatarInterliga(elHomeAvatar, fotoAtual, inicial);
     showToast('✅ Perfil atualizado!');
     go('screen-profile');
   } catch (e) {
@@ -3113,8 +3157,8 @@ async function configurarNotificacoesPush() {
     return;
   }
   if (!fbAppInstancia || !meuPassageiroId || !db) return;
-  if (VAPID_KEY === 'BNlkkjvYwHosBBv6UWCzKWCB58rNoEP1YrlGFsXetoPFLDMWUNdA2r4VqtD4sHwgdb_yyKbOBydT2dxKDXWrrY4') {
-    console.warn('[passageiro] VAPID_KEY ainda não configurada — pulando notificações push');
+  if (!VAPID_KEY || VAPID_KEY.length < 50) {
+    console.warn('[passageiro] VAPID_KEY inválida — pulando notificações push');
     return;
   }
 
