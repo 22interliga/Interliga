@@ -3,7 +3,7 @@
 // food.js — lógica isolada do módulo de comida, integrado ao Firebase
 // ═══════════════════════════════════════
 
-import { go, showToast, attachAddressAutocomplete } from './app.js';
+import { go, showToast, attachAddressAutocomplete } from './app.js?v=2';
 
 const foodState = {
   restauranteAtual: null,
