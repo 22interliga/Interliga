@@ -346,8 +346,14 @@ function onEnterHome() {
 
 // Chamado pelo MonitorCorridasService quando detecta nova corrida em segundo plano
 window._novaCorridaSegundoPlano = function(corridaId) {
-  // Se o app está em primeiro plano, o onSnapshot normal já vai capturar
-  // Se está em segundo plano, toca o alerta e o usuário vê a notificação nativa
+  // Nunca alertar em segundo plano se o motorista estiver Offline.
+  if (!state.online) {
+    console.log('[motorista] alerta de segundo plano ignorado — offline:', corridaId);
+    return;
+  }
+
+  // Se o app está em primeiro plano, o onSnapshot normal já vai capturar.
+  // Se está em segundo plano, o APK usa seu alerta nativo.
   tocarSomNovaCorrida();
 };
 
@@ -703,6 +709,12 @@ async function atualizarGridDemanda() {
 // ESCUTAR NOVAS CORRIDAS (Firestore)
 // ─────────────────────────────────────
 function iniciarEscutaCorridas() {
+  // Nunca escutar ofertas enquanto o motorista estiver Offline.
+  if (!state.online) {
+    console.log('[motorista] offline — listener de corridas não iniciado');
+    return;
+  }
+
   if (state.corridasListenerUnsub) return;
 
   if (firebaseReady && db) {
@@ -713,16 +725,34 @@ function iniciarEscutaCorridas() {
         fb.where('status', '==', 'aguardando')
       );
       state.corridasListenerUnsub = fb.onSnapshot(q, (snap) => {
+        // O listener pode receber um último snapshot logo após ficar Offline.
+        if (!state.online) {
+          console.log('[motorista] snapshot ignorado — motorista offline');
+          return;
+        }
+
         console.log('[motorista] snapshot de corridas recebido. docs:', snap.docs.length);
         snap.docChanges().forEach(change => {
+          if (!state.online) return;
+
           if (change.type === 'added' || change.type === 'modified') {
             const corrida = { id: change.doc.id, ...change.doc.data() };
             if (corrida.status !== 'aguardando') return;
 
-            // Ignorar corridas muito antigas (lixo de testes anteriores)
-            const criadoEmMs = corrida.criadoEm?.toMillis ? corrida.criadoEm.toMillis() : null;
-            if (criadoEmMs && (Date.now() - criadoEmMs) > 10 * 60 * 1000) {
-              console.log('[motorista] ignorando corrida antiga:', corrida.id);
+            // Aceita Timestamp do Firestore, ISO string ou milissegundos.
+            let criadoEmMs = null;
+            if (corrida.criadoEm?.toMillis) {
+              criadoEmMs = corrida.criadoEm.toMillis();
+            } else if (typeof corrida.criadoEm === 'string') {
+              const parsed = Date.parse(corrida.criadoEm);
+              if (Number.isFinite(parsed)) criadoEmMs = parsed;
+            } else if (typeof corrida.criadoEm === 'number') {
+              criadoEmMs = corrida.criadoEm;
+            }
+
+            // Sem data válida ou com mais de 2 minutos: nunca anunciar como corrida nova.
+            if (!criadoEmMs || Math.abs(Date.now() - criadoEmMs) > 2 * 60 * 1000) {
+              console.log('[motorista] ignorando corrida antiga/inválida:', corrida.id);
               return;
             }
 
@@ -844,6 +874,22 @@ function pararEscutaOferta() {
 }
 
 function notificarNovaCorrida(corrida) {
+  // Última barreira: nunca anunciar uma oferta se estiver Offline.
+  if (!state.online) {
+    console.log('[motorista] oferta ignorada em notificarNovaCorrida — offline:', corrida?.id);
+    return;
+  }
+
+  if (!corrida || corrida.status !== 'aguardando') {
+    console.log('[motorista] oferta ignorada — status inválido:', corrida?.id, corrida?.status);
+    return;
+  }
+
+  if (corrida.motoristaAlvoAtual && corrida.motoristaAlvoAtual !== meuMotoristaId) {
+    console.log('[motorista] oferta ignorada — destinada a outro motorista:', corrida.id);
+    return;
+  }
+
   console.log('[motorista] Nova corrida recebida:', corrida);
   state.corridaAtual = corrida;
   state.corridaAtualId = corrida.id;
@@ -851,7 +897,13 @@ function notificarNovaCorrida(corrida) {
   state.corridaChegouEm = Date.now();
 
   tocarSomNovaCorrida();
-  falarEmVoz('Nova corrida disponível!');
+
+  // A voz de "Nova corrida disponível" fica restrita ao APK.
+  // No navegador, evita fala fantasma/repetida do speechSynthesis.
+  if (window.AndroidNative) {
+    falarEmVoz('Nova corrida disponível!');
+  }
+
   escutarCancelamentoOferta(corrida.id);
 
   const banner = document.getElementById('new-ride-banner');
