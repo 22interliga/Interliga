@@ -47,8 +47,6 @@ const { app, db: _db, auth, fb: _fb, authMod } = await carregarFirebase('interli
         meuMotoristaId = user.uid;
         verificarCadastroMotorista();
       } else {
-        // Se perdeu a sessão, o serviço nativo não pode continuar anunciando corridas.
-        try { encerrarOperacaoMotorista(); } catch (e) {}
         meuMotoristaId = null;
         // Aguarda 800ms antes de redirecionar pro login
         // Isso evita o loop quando o app volta de outra aba ou é reaberto
@@ -217,7 +215,7 @@ const state = {
   countdownSegundos: 15,
   corridasListenerUnsub: null,
   chatListenerUnsub: null,
-  motorista: { nome: 'Motorista', avaliacao: '4.8', veiculo: 'Honda Civic', placa: 'ABC-1234', selfie: null },
+  motorista: { nome: 'Motorista', avaliacao: '4.8', veiculo: 'Honda Civic', placa: 'ABC-1234' },
   historico: [],
 };
 
@@ -348,14 +346,8 @@ function onEnterHome() {
 
 // Chamado pelo MonitorCorridasService quando detecta nova corrida em segundo plano
 window._novaCorridaSegundoPlano = function(corridaId) {
-  // Nunca alertar em segundo plano se o motorista estiver Offline.
-  if (!state.online) {
-    console.log('[motorista] alerta de segundo plano ignorado — offline:', corridaId);
-    return;
-  }
-
-  // Se o app está em primeiro plano, o onSnapshot normal já vai capturar.
-  // Se está em segundo plano, o APK usa seu alerta nativo.
+  // Se o app está em primeiro plano, o onSnapshot normal já vai capturar
+  // Se está em segundo plano, toca o alerta e o usuário vê a notificação nativa
   tocarSomNovaCorrida();
 };
 
@@ -429,32 +421,6 @@ window._abrirCorridaPush = async function(corridaId) {
   }
 };
 
-function encerrarOperacaoMotorista() {
-  // Força o estado local para Offline e encerra TUDO que pode continuar alertando.
-  state.online = false;
-
-  try { pararEscutaCorridas(); } catch (e) {}
-  try { pararDisponibilidade(); } catch (e) {}
-  try { pararEscutaOferta(); } catch (e) {}
-  try { clearInterval(state.countdownInterval); } catch (e) {}
-  try { clearInterval(state.somRepeticaoInterval); } catch (e) {}
-  try { window.speechSynthesis?.cancel(); } catch (e) {}
-
-  if (window.AndroidNative?.desativarSegundoPlano) {
-    try { window.AndroidNative.desativarSegundoPlano(); } catch (e) {}
-  }
-  if (window.AndroidNative?.pararMonitorSegundoPlano) {
-    try { window.AndroidNative.pararMonitorSegundoPlano(); } catch (e) {}
-  }
-
-  const btn = document.getElementById('online-toggle');
-  if (btn) {
-    btn.dataset.online = 'false';
-    const label = btn.querySelector('.online-label');
-    if (label) label.textContent = 'Offline';
-  }
-}
-
 document.getElementById('online-toggle')?.addEventListener('click', () => {
   state.online = !state.online;
   const btn = document.getElementById('online-toggle');
@@ -480,7 +446,10 @@ document.getElementById('online-toggle')?.addEventListener('click', () => {
     }
   } else {
     showToast('🔴 Você está offline');
-    encerrarOperacaoMotorista();
+    pararEscutaCorridas();
+    pararDisponibilidade();
+    if (window.AndroidNative?.desativarSegundoPlano) window.AndroidNative.desativarSegundoPlano();
+    if (window.AndroidNative?.pararMonitorSegundoPlano) window.AndroidNative.pararMonitorSegundoPlano();
   }
 });
 
@@ -734,12 +703,6 @@ async function atualizarGridDemanda() {
 // ESCUTAR NOVAS CORRIDAS (Firestore)
 // ─────────────────────────────────────
 function iniciarEscutaCorridas() {
-  // Nunca escutar ofertas enquanto o motorista estiver Offline.
-  if (!state.online) {
-    console.log('[motorista] offline — listener de corridas não iniciado');
-    return;
-  }
-
   if (state.corridasListenerUnsub) return;
 
   if (firebaseReady && db) {
@@ -750,34 +713,16 @@ function iniciarEscutaCorridas() {
         fb.where('status', '==', 'aguardando')
       );
       state.corridasListenerUnsub = fb.onSnapshot(q, (snap) => {
-        // O listener pode receber um último snapshot logo após ficar Offline.
-        if (!state.online) {
-          console.log('[motorista] snapshot ignorado — motorista offline');
-          return;
-        }
-
         console.log('[motorista] snapshot de corridas recebido. docs:', snap.docs.length);
         snap.docChanges().forEach(change => {
-          if (!state.online) return;
-
           if (change.type === 'added' || change.type === 'modified') {
             const corrida = { id: change.doc.id, ...change.doc.data() };
             if (corrida.status !== 'aguardando') return;
 
-            // Aceita Timestamp do Firestore, ISO string ou milissegundos.
-            let criadoEmMs = null;
-            if (corrida.criadoEm?.toMillis) {
-              criadoEmMs = corrida.criadoEm.toMillis();
-            } else if (typeof corrida.criadoEm === 'string') {
-              const parsed = Date.parse(corrida.criadoEm);
-              if (Number.isFinite(parsed)) criadoEmMs = parsed;
-            } else if (typeof corrida.criadoEm === 'number') {
-              criadoEmMs = corrida.criadoEm;
-            }
-
-            // Sem data válida ou com mais de 2 minutos: nunca anunciar como corrida nova.
-            if (!criadoEmMs || Math.abs(Date.now() - criadoEmMs) > 2 * 60 * 1000) {
-              console.log('[motorista] ignorando corrida antiga/inválida:', corrida.id);
+            // Ignorar corridas muito antigas (lixo de testes anteriores)
+            const criadoEmMs = corrida.criadoEm?.toMillis ? corrida.criadoEm.toMillis() : null;
+            if (criadoEmMs && (Date.now() - criadoEmMs) > 10 * 60 * 1000) {
+              console.log('[motorista] ignorando corrida antiga:', corrida.id);
               return;
             }
 
@@ -899,22 +844,6 @@ function pararEscutaOferta() {
 }
 
 function notificarNovaCorrida(corrida) {
-  // Última barreira: nunca anunciar uma oferta se estiver Offline.
-  if (!state.online) {
-    console.log('[motorista] oferta ignorada em notificarNovaCorrida — offline:', corrida?.id);
-    return;
-  }
-
-  if (!corrida || corrida.status !== 'aguardando') {
-    console.log('[motorista] oferta ignorada — status inválido:', corrida?.id, corrida?.status);
-    return;
-  }
-
-  if (corrida.motoristaAlvoAtual && corrida.motoristaAlvoAtual !== meuMotoristaId) {
-    console.log('[motorista] oferta ignorada — destinada a outro motorista:', corrida.id);
-    return;
-  }
-
   console.log('[motorista] Nova corrida recebida:', corrida);
   state.corridaAtual = corrida;
   state.corridaAtualId = corrida.id;
@@ -922,13 +851,7 @@ function notificarNovaCorrida(corrida) {
   state.corridaChegouEm = Date.now();
 
   tocarSomNovaCorrida();
-
-  // A voz de "Nova corrida disponível" fica restrita ao APK.
-  // No navegador, evita fala fantasma/repetida do speechSynthesis.
-  if (window.AndroidNative) {
-    falarEmVoz('Nova corrida disponível!');
-  }
-
+  falarEmVoz('Nova corrida disponível!');
   escutarCancelamentoOferta(corrida.id);
 
   const banner = document.getElementById('new-ride-banner');
@@ -961,172 +884,67 @@ document.addEventListener('click', (e) => {
   }
 });
 
-
-async function geocodificarEnderecoOferta(texto) {
-  if (!texto || typeof texto !== 'string') return null;
-  try {
-    const params = new URLSearchParams({
-      q: texto,
-      format: 'json',
-      limit: '1',
-      countrycodes: 'br'
-    });
-    const resp = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString(), {
-      headers: { 'Accept-Language': 'pt-BR' }
-    });
-    if (!resp.ok) return null;
-    const lista = await resp.json();
-    if (!Array.isArray(lista) || !lista[0]) return null;
-    const lat = Number(lista[0].lat);
-    const lon = Number(lista[0].lon);
-    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
-  } catch (e) {
-    console.warn('[motorista] falha ao geocodificar oferta:', e);
-    return null;
-  }
-}
-
-async function calcularRotaOferta(lat1, lon1, lat2, lon2) {
-  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false&alternatives=false&steps=false`;
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const rota = data?.routes?.[0];
-    if (!rota) return null;
-    return {
-      km: Number(rota.distance || 0) / 1000,
-      min: Math.max(1, Math.round(Number(rota.duration || 0) / 60))
-    };
-  } catch (e) {
-    console.warn('[motorista] falha ao calcular rota da oferta:', e);
-    return null;
-  }
-}
-
-async function garantirCoordenadasOferta(corrida) {
-  let origemLat = Number(corrida.origemLat);
-  let origemLon = Number(corrida.origemLon);
-  let destinoLat = Number(corrida.destinoLat);
-  let destinoLon = Number(corrida.destinoLon);
-
-  const origemValida = Number.isFinite(origemLat) && Number.isFinite(origemLon) &&
-    Math.abs(origemLat) > 0.00001 && Math.abs(origemLon) > 0.00001;
-  const destinoValido = Number.isFinite(destinoLat) && Number.isFinite(destinoLon) &&
-    Math.abs(destinoLat) > 0.00001 && Math.abs(destinoLon) > 0.00001;
-
-  if (!origemValida) {
-    const geo = await geocodificarEnderecoOferta(corrida.origem);
-    if (geo) {
-      origemLat = geo.lat;
-      origemLon = geo.lon;
-      corrida.origemLat = geo.lat;
-      corrida.origemLon = geo.lon;
-    }
-  }
-
-  if (!destinoValido) {
-    const geo = await geocodificarEnderecoOferta(corrida.destino);
-    if (geo) {
-      destinoLat = geo.lat;
-      destinoLon = geo.lon;
-      corrida.destinoLat = geo.lat;
-      corrida.destinoLon = geo.lon;
-    }
-  }
-
-  return {
-    origemLat, origemLon, destinoLat, destinoLon,
-    origemValida: Number.isFinite(origemLat) && Number.isFinite(origemLon),
-    destinoValido: Number.isFinite(destinoLat) && Number.isFinite(destinoLon)
-  };
-}
-
-async function atualizarMetricasOferta(corrida) {
-  const elAtePax = document.getElementById('request-ate-pax');
-  const elTempo = document.getElementById('request-tempo');
-  const elDistancia = document.getElementById('request-distancia');
-
-  if (elAtePax) elAtePax.textContent = 'Calculando...';
-  if (elTempo) elTempo.textContent = 'Calculando...';
-  if (elDistancia) elDistancia.textContent = 'Calculando...';
-
-  const coords = await garantirCoordenadasOferta(corrida);
-
-  // Distância total da corrida
-  if (coords.origemValida && coords.destinoValido) {
-    const rotaCorrida = await calcularRotaOferta(
-      coords.origemLat, coords.origemLon,
-      coords.destinoLat, coords.destinoLon
-    );
-    if (rotaCorrida && rotaCorrida.km > 0) {
-      if (elDistancia) elDistancia.textContent = rotaCorrida.km.toFixed(1) + ' km';
-      corrida.distanciaKmCalculada = rotaCorrida.km;
-    } else {
-      const km = haversineKm(coords.origemLat, coords.origemLon, coords.destinoLat, coords.destinoLon);
-      if (elDistancia) elDistancia.textContent = km.toFixed(1) + ' km';
-    }
-  } else if (elDistancia) {
-    elDistancia.textContent = '—';
-  }
-
-  // Posição do motorista -> passageiro
-  let mLat = Number(state.motoristaLat);
-  let mLon = Number(state.motoristaLon);
-
-  if ((!Number.isFinite(mLat) || !Number.isFinite(mLon)) && navigator.geolocation) {
-    try {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 8000,
-          maximumAge: 30000
-        });
-      });
-      mLat = pos.coords.latitude;
-      mLon = pos.coords.longitude;
-      state.motoristaLat = mLat;
-      state.motoristaLon = mLon;
-    } catch (e) {
-      console.warn('[motorista] GPS indisponível para calcular distância até passageiro:', e);
-    }
-  }
-
-  if (Number.isFinite(mLat) && Number.isFinite(mLon) && coords.origemValida) {
-    const rotaBusca = await calcularRotaOferta(mLat, mLon, coords.origemLat, coords.origemLon);
-    if (rotaBusca && rotaBusca.km >= 0) {
-      if (elAtePax) elAtePax.textContent = rotaBusca.km.toFixed(1) + ' km';
-      if (elTempo) elTempo.textContent = '~' + rotaBusca.min + ' min';
-    } else {
-      const kmAte = haversineKm(mLat, mLon, coords.origemLat, coords.origemLon);
-      if (elAtePax) elAtePax.textContent = kmAte.toFixed(1) + ' km';
-      if (elTempo) elTempo.textContent = '~' + Math.max(1, Math.round((kmAte / 25) * 60)) + ' min';
-    }
-  } else {
-    if (elAtePax) elAtePax.textContent = '—';
-    if (elTempo) elTempo.textContent = '—';
-  }
-}
-
 function exibirCorridaRecebida(corrida) {
   document.getElementById('request-empty').hidden = true;
   document.getElementById('request-card').hidden = false;
 
-  document.getElementById('request-origem').textContent = corrida.origem || 'Origem';
-  document.getElementById('request-destino').textContent = corrida.destino || 'Destino';
-  document.getElementById('request-valor').textContent =
-    'R$ ' + Number(corrida.preco || 18).toFixed(2).replace('.', ',');
+  document.getElementById('request-origem').textContent = corrida.origem;
+  document.getElementById('request-destino').textContent = corrida.destino;
+  const destinoEl = document.getElementById('request-destino');
+  let refEl = document.getElementById('request-referencia');
+  if (corrida.pontoReferencia) {
+    if (!refEl) {
+      refEl = document.createElement('div');
+      refEl.id = 'request-referencia';
+      refEl.style.cssText = 'font-size:12px;color:var(--text-soft);margin-top:6px;';
+      destinoEl?.parentElement?.parentElement?.appendChild(refEl);
+    }
+    refEl.textContent = '📍 Referência de embarque: ' + corrida.pontoReferencia;
+    refEl.hidden = false;
+  } else if (refEl) refEl.hidden = true;
+  document.getElementById('request-valor').textContent = 'R$ ' + Number(corrida.preco || 18).toFixed(2).replace('.', ',');
 
-  // Passageiro: foto, nome, avaliação e histórico.
+  if (corrida.origemLat && corrida.destinoLat) {
+    const km = haversineKm(corrida.origemLat, corrida.origemLon, corrida.destinoLat, corrida.destinoLon);
+    document.getElementById('request-distancia').textContent = km.toFixed(1) + ' km';
+  } else {
+    document.getElementById('request-distancia').textContent = '-- km';
+  }
+
+  // Distancia do motorista ate o passageiro + tempo estimado ate busca-lo
+  const elAtePax = document.getElementById('request-ate-pax');
+  const elTempo = document.getElementById('request-tempo');
+  if (elAtePax && elTempo) {
+    const temOrigem = typeof corrida.origemLat === 'number' && typeof corrida.origemLon === 'number';
+    const mostrarAte = (mLat, mLon) => {
+      const kmAte = haversineKm(mLat, mLon, corrida.origemLat, corrida.origemLon);
+      elAtePax.textContent = kmAte.toFixed(1) + ' km';
+      elTempo.textContent = '~' + Math.max(1, Math.round((kmAte / 25) * 60)) + ' min'; // ~25 km/h media urbana
+    };
+    if (typeof state.motoristaLat === 'number' && temOrigem) {
+      mostrarAte(state.motoristaLat, state.motoristaLon);
+    } else if (temOrigem && navigator.geolocation) {
+      // Sem posicao ainda: tenta pegar o GPS uma vez; se nao vier em 8s, mostra tracinho.
+      elAtePax.textContent = 'Calculando...';
+      elTempo.textContent = 'Calculando...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { state.motoristaLat = pos.coords.latitude; state.motoristaLon = pos.coords.longitude; mostrarAte(pos.coords.latitude, pos.coords.longitude); },
+        () => { elAtePax.textContent = '\u2014'; elTempo.textContent = '\u2014'; },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    } else {
+      elAtePax.textContent = '\u2014';
+      elTempo.textContent = '\u2014';
+    }
+  }
+
+  // Mostra info do passageiro no card de oferta
   const nomePax = corrida.passageiroNome || 'Passageiro';
   const elPaxNome = document.getElementById('request-pax-nome');
   const elPaxAvatar = document.getElementById('request-pax-avatar');
   const elPaxStats = document.getElementById('request-pax-stats');
-  const inicialPax = nomePax.slice(0, 2).toUpperCase();
-
   if (elPaxNome) elPaxNome.textContent = nomePax;
-  renderAvatarMotorista(elPaxAvatar, corrida.passageiroSelfie || null, inicialPax);
+  if (elPaxAvatar) elPaxAvatar.textContent = nomePax.slice(0, 2).toUpperCase();
   if (elPaxStats) elPaxStats.textContent = 'Carregando...';
 
   if (corrida.passageiroId && firebaseReady && db) {
@@ -1138,53 +956,17 @@ function exibirCorridaRecebida(corrida) {
         fb.where('status', '==', 'finalizada')
       )),
     ]).then(([snapPax, snapCorridas]) => {
-      let avaliacao = null;
-
-      if (snapPax.exists()) {
-        const dadosPax = snapPax.data() || {};
-        avaliacao = dadosPax.avaliacao || null;
-
-        if (dadosPax.nome) {
-          corrida.passageiroNome = dadosPax.nome;
-          if (elPaxNome) elPaxNome.textContent = dadosPax.nome;
-        }
-
-        if (dadosPax.selfie) {
-          corrida.passageiroSelfie = dadosPax.selfie;
-          renderAvatarMotorista(
-            elPaxAvatar,
-            dadosPax.selfie,
-            (dadosPax.nome || nomePax).slice(0, 2).toUpperCase()
-          );
-        }
-      }
-
+      const avaliacao = snapPax.exists() ? snapPax.data().avaliacao : null;
       const total = snapCorridas.size;
       if (elPaxStats) {
-        const estrelas = avaliacao ? `⭐ ${avaliacao}` : '⭐ Sem avaliações';
-        const corridas = total === 0
-          ? '🆕 Primeira corrida'
-          : `🚗 ${total} corrida${total > 1 ? 's' : ''}`;
-        elPaxStats.textContent = `${estrelas} · ${corridas}`;
+        const estrelas = avaliacao ? `⭐ ${avaliacao}` : '';
+        const corridas = total === 0 ? '🆕 Primeira corrida!' : `🚗 ${total} corrida${total > 1 ? 's' : ''}`;
+        elPaxStats.textContent = [estrelas, corridas].filter(Boolean).join(' · ');
       }
-    }).catch((e) => {
-      console.warn('[motorista] erro ao carregar dados do passageiro na oferta:', e);
+    }).catch(() => {
       if (elPaxStats) elPaxStats.textContent = '—';
     });
-  } else if (elPaxStats) {
-    elPaxStats.textContent = '—';
   }
-
-  // Calcula rota/distâncias sem bloquear a exibição do card.
-  atualizarMetricasOferta(corrida).catch((e) => {
-    console.warn('[motorista] erro nas métricas da oferta:', e);
-    const ate = document.getElementById('request-ate-pax');
-    const tempo = document.getElementById('request-tempo');
-    const dist = document.getElementById('request-distancia');
-    if (ate) ate.textContent = '—';
-    if (tempo) tempo.textContent = '—';
-    if (dist) dist.textContent = '—';
-  });
 
   iniciarCountdown();
 }
@@ -1363,7 +1145,6 @@ async function aceitarCorrida() {
           motoristaVeiculo: state.motorista.veiculo,
           motoristaPlaca: state.motorista.placa,
           motoristaAvaliacao: state.motorista.avaliacao,
-          motoristaSelfie: state.motorista.selfie || null,
         });
         return true;
       });
@@ -1394,7 +1175,6 @@ async function aceitarCorrida() {
       destino: corrida.destino,
       passageiroId: corrida.passageiroId,
       passageiroNome: corrida.passageiroNome,
-      passageiroSelfie: corrida.passageiroSelfie || null,
       preco: corrida.preco,
       criadoEm: Date.now(),
     }));
@@ -1415,8 +1195,6 @@ async function aceitarCorrida() {
     destino: corrida.destino,
     preco: corrida.preco,
     passageiroNome: corrida.passageiroNome,
-    passageiroSelfie: corrida.passageiroSelfie || null,
-    passageiroId: corrida.passageiroId || null,
     aceitoEm: Date.now(),
   }));
 
@@ -1445,11 +1223,7 @@ function onEnterOngoing() {
   setText('ongoing-origem', corrida.origem);
   setText('ongoing-destino', corrida.destino);
   setText('passenger-name', corrida.passageiroNome || 'Passageiro');
-
-  const passengerAvatar = document.getElementById('passenger-avatar');
-  const inicialPassageiro = (corrida.passageiroNome || 'PS').slice(0, 2).toUpperCase();
-  renderAvatarMotorista(passengerAvatar, corrida.passageiroSelfie || null, inicialPassageiro);
-
+  setText('passenger-avatar', (corrida.passageiroNome || 'PS').slice(0, 2).toUpperCase());
   setText('passenger-rating', '⭐ —');
   setText('passenger-corridas', '');
 
@@ -1463,25 +1237,8 @@ function onEnterOngoing() {
         fb.where('status', '==', 'finalizada')
       )),
     ]).then(([snapPax, snapCorridas]) => {
-      if (snapPax.exists()) {
-        const dadosPax = snapPax.data() || {};
-
-        if (dadosPax.nome) {
-          setText('passenger-name', dadosPax.nome);
-        }
-
-        if (dadosPax.selfie) {
-          corrida.passageiroSelfie = dadosPax.selfie;
-          renderAvatarMotorista(
-            passengerAvatar,
-            dadosPax.selfie,
-            (dadosPax.nome || corrida.passageiroNome || 'PS').slice(0, 2).toUpperCase()
-          );
-        }
-
-        if (dadosPax.avaliacao) {
-          setText('passenger-rating', '⭐ ' + dadosPax.avaliacao);
-        }
+      if (snapPax.exists() && snapPax.data().avaliacao) {
+        setText('passenger-rating', '⭐ ' + snapPax.data().avaliacao);
       }
       const totalCorridas = snapCorridas.size;
       const elCorridas = document.getElementById('passenger-corridas');
@@ -1788,6 +1545,12 @@ document.getElementById('btn-cheguei')?.addEventListener('click', () => {
   } else {
     // Chegou no destino final — libera finalizar corrida
     chegouAoCliente = true;
+    if (firebaseReady && db && state.corridaAtualId && !String(state.corridaAtualId).startsWith('local-')) {
+      fb.updateDoc(fb.doc(db, 'corridas', state.corridaAtualId), {
+        motoristaChegou: true,
+        motoristaChegouEm: fb.serverTimestamp(),
+      }).catch((e) => console.error('[motorista] erro ao registrar chegada:', e));
+    }
     document.getElementById('btn-cheguei').hidden = true;
     document.getElementById('btn-finalizar-corrida').hidden = false;
     document.getElementById('ongoing-eta-badge').textContent = '🟢 Você chegou!';
@@ -2462,7 +2225,6 @@ document.getElementById('btn-enviar-cadastro-motorista')?.addEventListener('clic
     state.motorista.veiculo = veiculo;
     state.motorista.placa = placa;
     state.motorista.cidade = cidade;
-    state.motorista.selfie = fotosCadastroMotorista.selfie;
     mostrarTelaAguardandoAprovacaoMotorista();
   } catch (e) {
     console.error('[motorista] erro ao enviar cadastro:', e);
@@ -2530,26 +2292,6 @@ document.getElementById('link-esqueci-senha-mot')?.addEventListener('click', asy
 // ─────────────────────────────────────
 let cadastroMotoristaListenerUnsub = null;
 
-
-function renderAvatarMotorista(elemento, foto, fallback = 'M') {
-  if (!elemento) return;
-  elemento.innerHTML = '';
-
-  if (foto) {
-    const img = document.createElement('img');
-    img.src = foto;
-    img.alt = 'Foto de perfil';
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'cover';
-    img.style.borderRadius = '50%';
-    img.style.display = 'block';
-    elemento.appendChild(img);
-  } else {
-    elemento.textContent = fallback || 'M';
-  }
-}
-
 async function verificarCadastroMotorista() {
   if (!firebaseReady || !db) return;
   try {
@@ -2566,8 +2308,6 @@ async function verificarCadastroMotorista() {
     if (dados.cidade) state.motorista.cidade = dados.cidade;
     if (dados.cpf) state.motorista.cpf = dados.cpf;
     if (dados.email) state.motorista.email = dados.email;
-    state.motorista.selfie = dados.selfie || null;
-    if (dados.avaliacao) state.motorista.avaliacao = dados.avaliacao;
     state.motorista.categoria = dados.categoria || 'x';
     state.motorista.categorias = Array.isArray(dados.categorias) ? dados.categorias : [state.motorista.categoria];
     const nomesCategoria = { x: 'Interliga X', plus: 'Interliga Plus', van: 'Interliga Van' };
@@ -2580,15 +2320,13 @@ async function verificarCadastroMotorista() {
     const elTelefone = document.getElementById('profile-driver-phone');
     if (elTelefone) elTelefone.textContent = state.motorista.celular || '—';
     const elAvatar = document.getElementById('profile-driver-avatar');
-    const elHomeAvatar = document.getElementById('driver-home-avatar');
-    const inicialMotorista = (state.motorista.nome || 'M').trim().charAt(0).toUpperCase();
-    renderAvatarMotorista(elAvatar, state.motorista.selfie, inicialMotorista);
-    renderAvatarMotorista(elHomeAvatar, state.motorista.selfie, inicialMotorista);
-
-    const elHomeNome = document.getElementById('driver-home-name');
-    if (elHomeNome) elHomeNome.textContent = state.motorista.nome || 'Motorista';
-    const elHomeAvaliacao = document.getElementById('driver-home-rating');
-    if (elHomeAvaliacao) elHomeAvaliacao.textContent = state.motorista.avaliacao || '—';
+    if (elAvatar) {
+      if (dados.selfie) {
+        elAvatar.innerHTML = `<img src="${dados.selfie}" alt="Foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      } else {
+        elAvatar.textContent = (state.motorista.nome || 'M').trim().charAt(0).toUpperCase();
+      }
+    }
     const inputFotoMot = document.getElementById('input-trocar-foto-mot');
     if (inputFotoMot && !inputFotoMot._wiredPerfil) {
       inputFotoMot._wiredPerfil = true;
@@ -2614,9 +2352,7 @@ async function verificarCadastroMotorista() {
             reader.onerror = reject; reader.readAsDataURL(file);
           });
           await fb.setDoc(fb.doc(db, 'motoristas', meuMotoristaId), { selfie: novaFoto }, { merge: true });
-          state.motorista.selfie = novaFoto;
-          renderAvatarMotorista(elAvatar, novaFoto, inicialMotorista);
-          renderAvatarMotorista(elHomeAvatar, novaFoto, inicialMotorista);
+          if (elAvatar) elAvatar.innerHTML = `<img src="${novaFoto}" alt="Foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
           showToast('✅ Foto atualizada!');
         } catch (err) { showToast('⚠️ Erro ao atualizar foto'); }
       });
@@ -2643,7 +2379,9 @@ async function verificarCadastroMotorista() {
 async function aplicarStatusCadastroMotorista(dados) {
   if (dados.bloqueado === true) {
     // Força offline na hora — não pode continuar recebendo corridas se foi bloqueado
-    encerrarOperacaoMotorista();
+    state.online = false;
+    pararEscutaCorridas();
+    pararDisponibilidade();
     const btnOnline = document.getElementById('online-toggle');
     if (btnOnline) { btnOnline.dataset.online = 'false'; btnOnline.querySelector('.online-label').textContent = 'Offline'; }
     const elMotivo = document.getElementById('bloqueio-mot-motivo-texto');
@@ -2764,7 +2502,10 @@ document.getElementById('btn-suporte-motorista')?.addEventListener('click', () =
 document.getElementById('btn-sair-motorista')?.addEventListener('click', async () => {
   if (!confirm('Sair da sua conta? Você vai precisar fazer login de novo pra voltar a usar o app.')) return;
   try {
-    encerrarOperacaoMotorista();
+    if (state.online) {
+      pararEscutaCorridas();
+      pararDisponibilidade();
+    }
     if (authMotorista) await authModRef.signOut(authMotorista);
     meuMotoristaId = null;
     go('screen-login-motorista');
@@ -2775,9 +2516,6 @@ document.getElementById('btn-sair-motorista')?.addEventListener('click', async (
 });
 
 document.getElementById('btn-trocar-para-passageiro')?.addEventListener('click', () => {
-  // Ao sair do papel motorista, encerra o monitor/voz de corridas.
-  encerrarOperacaoMotorista();
-
   // Precisa marcar o papel como 'passageiro' antes de voltar — senão o
   // index.html detecta 'motorista' salvo e manda de volta pra cá na hora.
   localStorage.setItem('interliga_papel', 'passageiro');
@@ -2799,8 +2537,8 @@ async function configurarNotificacoesPush() {
     return;
   }
   if (!fbAppInstancia || !meuMotoristaId || !db) return;
-  if (!VAPID_KEY || VAPID_KEY.length < 50) {
-    console.warn('[motorista] VAPID_KEY inválida — pulando notificações push');
+  if (VAPID_KEY === 'BNlkkjvYwHosBBv6UWCzKWCB58rNoEP1YrlGFsXetoPFLDMWUNdA2r4VqtD4sHwgdb_yyKbOBydT2dxKDXWrrY4') {
+    console.warn('[motorista] VAPID_KEY ainda não configurada — pulando notificações push');
     return;
   }
 
