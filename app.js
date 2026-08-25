@@ -721,6 +721,7 @@ async function carregarTabelaPrecos() {
           valorFixo: Number(c.valorFixo || c.valorfixo || 0),
           kmFixo: Number(c.kmFixo || 0),
           valorFixo: Number(c.valorFixo || 0),
+          faixasKm: Array.isArray(c.faixasKm) ? c.faixasKm.map(f => ({ de:Number(f.de)||0, ate:Number(f.ate)||0, tipo:f.tipo === 'por_km' ? 'por_km' : 'fixo', valor:Number(f.valor)||0 })) : [],
           multiplicador: Number(c.multiplicador || 1),
           ativo: c.ativo !== false,
           nome: c.nome,
@@ -807,14 +808,43 @@ function calcularAcrescimoRisco(origem, destino) {
   return { acrescimo, percentual, zonasAtingidas };
 }
 
-// Calcula o valor base da corrida — se a categoria tiver "tarifa fixa até X km" configurada,
-// usa esse valor fixo dentro da faixa e só volta a cobrar por km depois que passar dela.
-function calcularPrecoBase(km, t) {
-  if (t.kmFixo > 0 && t.valorFixo > 0) {
-    if (km <= t.kmFixo) return t.valorFixo;
-    return t.valorFixo + (km - t.kmFixo) * t.tarifaKm;
+// Calcula o valor base com faixas configuráveis.
+// fixo = preço total daquela faixa.
+// por_km = mantém o acumulado anterior e soma só os km rodados dentro da faixa.
+function normalizarFaixasPrecoApp(faixas) {
+  return (Array.isArray(faixas) ? faixas : [])
+    .map(f => ({ de:Number(f.de)||0, ate:Number(f.ate)||0, tipo:f.tipo === 'por_km' ? 'por_km' : 'fixo', valor:Number(f.valor)||0 }))
+    .filter(f => f.ate >= f.de)
+    .sort((a,b) => a.de-b.de || a.ate-b.ate);
+}
+
+function calcularPrecoPorFaixasApp(km, faixas) {
+  const ordenadas = normalizarFaixasPrecoApp(faixas);
+  let acumuladoAnterior = 0;
+  for (const faixa of ordenadas) {
+    if (km >= faixa.de && km <= faixa.ate) {
+      if (faixa.tipo === 'por_km') {
+        const kmNaFaixa = Math.max(0, km - faixa.de);
+        return { valor: acumuladoAnterior + kmNaFaixa * faixa.valor, faixa, acumuladoAnterior, kmNaFaixa };
+      }
+      return { valor: faixa.valor, faixa, acumuladoAnterior, kmNaFaixa:0 };
+    }
+    if (km > faixa.ate) {
+      if (faixa.tipo === 'por_km') acumuladoAnterior += Math.max(0, faixa.ate - faixa.de) * faixa.valor;
+      else acumuladoAnterior = faixa.valor;
+    }
   }
-  return t.bandeirada + km * t.tarifaKm;
+  return null;
+}
+
+function calcularPrecoBase(km, t) {
+  const calcFaixa = calcularPrecoPorFaixasApp(km, t.faixasKm);
+  if (calcFaixa) return { ...calcFaixa, usaFaixa:true };
+  if (t.kmFixo > 0 && t.valorFixo > 0) {
+    const valor = km <= t.kmFixo ? t.valorFixo : t.valorFixo + (km - t.kmFixo) * t.tarifaKm;
+    return { valor, faixa:null, usaFaixa:false };
+  }
+  return { valor: t.bandeirada + km * t.tarifaKm, faixa:null, usaFaixa:false };
 }
 
 // ─────────────────────────────────────
@@ -967,7 +997,8 @@ function calcularPrecos() {
       if (priceEl) priceEl.textContent = (preco < minimoOriginal ? '🎁 R$ ' + preco.toFixed(2).replace('.', ',') : 'A partir de R$ ' + preco.toFixed(2).replace('.', ','));
       if (etaEl) etaEl.textContent = 'Combine c/ motorista';
     } else {
-      preco = Math.max(t.minimo, calcularPrecoBase(km, t)) * Number(t.multiplicador || 1) * multiplicadorZona;
+      const calcBase = calcularPrecoBase(km, t);
+      preco = (calcBase.usaFaixa ? calcBase.valor : Math.max(t.minimo, calcBase.valor)) * Number(t.multiplicador || 1) * multiplicadorZona;
       preco = preco + risco.acrescimo;
       preco = preco * (1 + risco.percentual / 100);
       preco = preco * (1 + percentualHorario / 100);

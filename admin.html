@@ -956,12 +956,12 @@ textarea.inp { resize: vertical; }
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
                     <div>
                       <div class="lbl" style="margin-bottom:3px;">FAIXAS DE DISTÂNCIA</div>
-                      <div style="font-size:12px;color:var(--t2);">Defina um valor fixo para cada intervalo de km. Ex.: 0–5 km = R$ 12,00.</div>
+                      <div style="font-size:12px;color:var(--t2);">Escolha se cada intervalo tem valor fixo ou se soma R$/km ao valor acumulado da faixa anterior. Ex.: 0–3 km = R$ 10 fixos; 3–6 km = R$ 10 + km excedente.</div>
                     </div>
                     <button type="button" class="pbtn" onclick="adicionarFaixaCategoria()">+ Adicionar faixa</button>
                   </div>
                   <div id="cat-faixas-lista"></div>
-                  <div style="font-size:11px;color:var(--t2);margin-top:8px;">Se a distância não entrar em nenhuma faixa, o sistema usa Bandeirada + Tarifa KM como regra de segurança.</div>
+                  <div style="font-size:11px;color:var(--t2);margin-top:8px;">Se a distância não entrar em nenhuma faixa, o sistema usa Bandeirada + Tarifa KM como regra de segurança. Na opção “Acumulado + R$/km”, o cálculo parte do valor no fim da faixa anterior.</div>
                 </div>
                 <div style="display:flex;gap:8px;">
                   <button class="pbtn" onclick="salvarCategoria()">💾 Salvar</button>
@@ -1433,19 +1433,40 @@ function obterCategoriaEfetivaAdmin(c) {
   return override ? { ...c, ...override, codigo } : { ...c, codigo };
 }
 
-function encontrarFaixaKmAdmin(faixas, dist) {
-  if (!Array.isArray(faixas)) return null;
-  return faixas
-    .map(f => ({ de:Number(f.de)||0, ate:Number(f.ate)||0, valor:Number(f.valor)||0 }))
+function normalizarFaixasCalculoAdmin(faixas) {
+  return (Array.isArray(faixas) ? faixas : [])
+    .map(f => ({ de:Number(f.de)||0, ate:Number(f.ate)||0, tipo:f.tipo === 'por_km' ? 'por_km' : 'fixo', valor:Number(f.valor)||0 }))
     .filter(f => f.ate >= f.de)
-    .sort((a,b) => a.de-b.de || a.ate-b.ate)
-    .find(f => dist >= f.de && dist <= f.ate) || null;
+    .sort((a,b) => a.de-b.de || a.ate-b.ate);
+}
+
+function encontrarFaixaKmAdmin(faixas, dist) {
+  return normalizarFaixasCalculoAdmin(faixas).find(f => dist >= f.de && dist <= f.ate) || null;
+}
+
+function calcularValorFaixaAdmin(faixas, dist) {
+  const ordenadas = normalizarFaixasCalculoAdmin(faixas);
+  let acumuladoAnterior = 0;
+  for (const faixa of ordenadas) {
+    if (dist >= faixa.de && dist <= faixa.ate) {
+      if (faixa.tipo === 'por_km') {
+        const kmNaFaixa = Math.max(0, dist - faixa.de);
+        return { valor: acumuladoAnterior + kmNaFaixa * faixa.valor, faixa, acumuladoAnterior, kmNaFaixa, modo:'faixa_por_km' };
+      }
+      return { valor: faixa.valor, faixa, acumuladoAnterior, kmNaFaixa:0, modo:'faixa_fixa' };
+    }
+    if (dist > faixa.ate) {
+      if (faixa.tipo === 'por_km') acumuladoAnterior += Math.max(0, faixa.ate - faixa.de) * faixa.valor;
+      else acumuladoAnterior = faixa.valor;
+    }
+  }
+  return null;
 }
 
 function calcularBaseCategoriaAdmin(c, dist) {
   const t = obterCategoriaEfetivaAdmin(c) || {};
-  const faixa = encontrarFaixaKmAdmin(t.faixasKm, dist);
-  if (faixa) return { valor: faixa.valor, faixa, modo:'faixa' };
+  const calcFaixa = calcularValorFaixaAdmin(t.faixasKm, dist);
+  if (calcFaixa) return calcFaixa;
   const kmFixo = Number(t.kmFixo)||0;
   const valorFixo = Number(t.valorFixo)||0;
   const tarifaKm = Number(t.tarifaKm ?? t.tarifakm)||0;
@@ -1500,7 +1521,11 @@ function simular(){
   if(res) res.textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
   if (calc.faixa) {
     if(form) form.textContent = `${c.nome} · ${dist} km → faixa ${calc.faixa.de}–${calc.faixa.ate} km`;
-    if(det) det.innerHTML = `Faixa aplicada: <b>${calc.faixa.de} a ${calc.faixa.ate} km = R$ ${calc.faixa.valor.toFixed(2).replace('.', ',')}</b><br>Dinâmico: ${mult}×${zona>0?'<br>Zona especial: +R$ '+zona.toFixed(2).replace('.', ','):''}<br>Preço mínimo: não se aplica à faixa<br><b>Total: R$ ${total.toFixed(2).replace('.', ',')}</b>`;
+    if (calc.faixa.tipo === 'por_km') {
+      if(det) det.innerHTML = `Faixa aplicada: <b>${calc.faixa.de} a ${calc.faixa.ate} km · acumulado + R$ ${calc.faixa.valor.toFixed(2).replace('.', ',')}/km</b><br>Valor acumulado anterior: R$ ${Number(calc.acumuladoAnterior||0).toFixed(2).replace('.', ',')}<br>Km cobrados nesta faixa: ${Number(calc.kmNaFaixa||0).toFixed(2).replace('.', ',')} km × R$ ${calc.faixa.valor.toFixed(2).replace('.', ',')}<br>Dinâmico: ${mult}×${zona>0?'<br>Zona especial: +R$ '+zona.toFixed(2).replace('.', ','):''}<br>Preço mínimo: não se aplica à faixa<br><b>Total: R$ ${total.toFixed(2).replace('.', ',')}</b>`;
+    } else {
+      if(det) det.innerHTML = `Faixa aplicada: <b>${calc.faixa.de} a ${calc.faixa.ate} km = R$ ${calc.faixa.valor.toFixed(2).replace('.', ',')} fixos</b><br>Dinâmico: ${mult}×${zona>0?'<br>Zona especial: +R$ '+zona.toFixed(2).replace('.', ','):''}<br>Preço mínimo: não se aplica à faixa<br><b>Total: R$ ${total.toFixed(2).replace('.', ',')}</b>`;
+    }
   } else {
     if(form) form.textContent = `${c.nome} · ${dist} km · regra por km (fora das faixas)`;
     if(det) det.innerHTML = `Sem faixa para ${dist} km.<br>Bandeirada: R$ ${band.toFixed(2).replace('.', ',')}<br>Distância: ${dist} km × R$ ${tarifaKm.toFixed(2).replace('.', ',')} = R$ ${(dist*tarifaKm).toFixed(2).replace('.', ',')}<br>Dinâmico: ${mult}×${zona>0?'<br>Zona especial: +R$ '+zona.toFixed(2).replace('.', ','):''}<br>Preço mínimo: R$ ${minimo.toFixed(2).replace('.', ',')}<br><b>Total: R$ ${total.toFixed(2).replace('.', ',')}</b>`;
@@ -2178,7 +2203,7 @@ let _faixasCategoriaEditando = [];
 
 function normalizarFaixasCategoria(faixas) {
   return (Array.isArray(faixas) ? faixas : [])
-    .map(f => ({ de:Number(f.de)||0, ate:Number(f.ate)||0, valor:Number(f.valor)||0 }))
+    .map(f => ({ de:Number(f.de)||0, ate:Number(f.ate)||0, tipo:f.tipo === 'por_km' ? 'por_km' : 'fixo', valor:Number(f.valor)||0 }))
     .filter(f => f.ate >= f.de)
     .sort((a,b) => a.de-b.de || a.ate-b.ate);
 }
@@ -2191,10 +2216,11 @@ function renderFaixasCategoria() {
     return;
   }
   box.innerHTML = _faixasCategoriaEditando.map((f,i) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr 38px;gap:7px;align-items:end;margin-bottom:8px;">
+    <div style="display:grid;grid-template-columns:.8fr .8fr 1.25fr 1.15fr 38px;gap:7px;align-items:end;margin-bottom:8px;">
       <div class="fl"><div class="lbl">DE (KM)</div><input class="inp" type="number" min="0" step="0.1" value="${f.de}" oninput="atualizarFaixaCategoria(${i},'de',this.value)"></div>
       <div class="fl"><div class="lbl">ATÉ (KM)</div><input class="inp" type="number" min="0" step="0.1" value="${f.ate}" oninput="atualizarFaixaCategoria(${i},'ate',this.value)"></div>
-      <div class="fl"><div class="lbl">VALOR (R$)</div><input class="inp" type="number" min="0" step="0.50" value="${Number(f.valor).toFixed(2)}" oninput="atualizarFaixaCategoria(${i},'valor',this.value)"></div>
+      <div class="fl"><div class="lbl">COBRANÇA</div><select class="inp" onchange="atualizarTipoFaixaCategoria(${i},this.value)"><option value="fixo" ${f.tipo!=='por_km'?'selected':''}>Valor fixo</option><option value="por_km" ${f.tipo==='por_km'?'selected':''}>Acumulado + R$/km</option></select></div>
+      <div class="fl"><div class="lbl">${f.tipo==='por_km'?'VALOR POR KM (R$)':'VALOR FIXO (R$)'}</div><input class="inp" type="number" min="0" step="0.05" value="${Number(f.valor).toFixed(2)}" oninput="atualizarFaixaCategoria(${i},'valor',this.value)"></div>
       <button type="button" class="pbtn" style="background:var(--red);padding:10px 8px;" onclick="removerFaixaCategoria(${i})">🗑️</button>
     </div>`).join('');
 }
@@ -2202,11 +2228,12 @@ function renderFaixasCategoria() {
 function adicionarFaixaCategoria() {
   const ultima = _faixasCategoriaEditando[_faixasCategoriaEditando.length-1];
   const de = ultima ? Number(ultima.ate)||0 : 0;
-  _faixasCategoriaEditando.push({ de, ate: de+5, valor: 0 });
+  _faixasCategoriaEditando.push({ de, ate: de+5, tipo:'por_km', valor: 0 });
   renderFaixasCategoria();
 }
 function removerFaixaCategoria(i) { _faixasCategoriaEditando.splice(i,1); renderFaixasCategoria(); }
 function atualizarFaixaCategoria(i,campo,valor) { if (_faixasCategoriaEditando[i]) _faixasCategoriaEditando[i][campo] = Number(valor)||0; }
+function atualizarTipoFaixaCategoria(i,tipo) { if (_faixasCategoriaEditando[i]) { _faixasCategoriaEditando[i].tipo = tipo === 'por_km' ? 'por_km' : 'fixo'; renderFaixasCategoria(); } }
 
 function toggleFormCategoria() {
   const f = document.getElementById('form-categoria');
@@ -2222,7 +2249,7 @@ function toggleFormCategoria() {
     document.getElementById('cat-tarifakm').value = '0.00';
     document.getElementById('cat-minimo').value = '0.00';
     document.getElementById('cat-mult').value = '1.0';
-    _faixasCategoriaEditando = [{de:0, ate:5, valor:0}];
+    _faixasCategoriaEditando = [{de:0, ate:5, tipo:'fixo', valor:0}];
     renderFaixasCategoria();
   }
 }
@@ -2230,7 +2257,7 @@ function toggleFormCategoria() {
 function resumoFaixasCategoria(c) {
   const faixas = normalizarFaixasCategoria(c.faixasKm);
   if (!faixas.length) return `Band. ${formatMoeda(c.bandeirada)} · Km ${formatMoeda(c.tarifaKm ?? c.tarifakm)} · Mín. ${formatMoeda(c.minimo)}`;
-  return faixas.map(f => `${f.de}–${f.ate} km = ${formatMoeda(f.valor)}`).join(' · ');
+  return faixas.map(f => f.tipo==='por_km' ? `${f.de}–${f.ate} km = acumulado + ${formatMoeda(f.valor)}/km` : `${f.de}–${f.ate} km = ${formatMoeda(f.valor)} fixo`).join(' · ');
 }
 
 function renderCategoriasAdmin() {
@@ -2332,7 +2359,7 @@ function editarCategoria(id) {
   _faixasCategoriaEditando = normalizarFaixasCategoria(c.faixasKm);
   if (!_faixasCategoriaEditando.length) {
     const kmFixo = Number(c.kmFixo)||0, valorFixo = Number(c.valorFixo)||0;
-    if (kmFixo>0 && valorFixo>0) _faixasCategoriaEditando = [{de:0,ate:kmFixo,valor:valorFixo}];
+    if (kmFixo>0 && valorFixo>0) _faixasCategoriaEditando = [{de:0,ate:kmFixo,tipo:'fixo',valor:valorFixo}];
   }
   renderFaixasCategoria();
   document.getElementById('form-categoria').style.display='block';
