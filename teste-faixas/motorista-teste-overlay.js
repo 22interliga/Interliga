@@ -36,7 +36,10 @@ function garantirLinhaReferencia(){
 function aplicarNaTela(corrida){
   if (!corrida) return;
   const valor = document.getElementById('request-valor');
-  if (valor) valor.textContent = dinheiro(corrida.preco);
+  const valorMotorista = (corrida.precoOriginal !== undefined && corrida.precoOriginal !== null)
+    ? corrida.precoOriginal
+    : corrida.preco;
+  if (valor) valor.textContent = dinheiro(valorMotorista);
   garantirLinhaReferencia();
   const ref = document.getElementById('request-ponto-ref-texto');
   if (ref) ref.textContent = corrida.pontoReferencia || 'Não informado';
@@ -68,6 +71,7 @@ function iniciar(uid){
     aplicarNaTela(c);
     setTimeout(() => aplicarNaTela(c), 200);
     setTimeout(() => aplicarNaTela(c), 700);
+    setTimeout(() => aplicarNaTela(c), 1500);
   }, err => console.warn('[motorista-teste] erro ao ler corrida:', err));
 }
 
