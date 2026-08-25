@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interliga — Teste de Faixas KM</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f6f8;margin:0;padding:24px;color:#1f2937}.box{max-width:760px;margin:auto;background:#fff;padding:24px;border-radius:16px;box-shadow:0 8px 30px #0001}h1{margin-top:0}.alerta{background:#fff7ed;border:1px solid #fdba74;padding:12px;border-radius:10px;margin-bottom:18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block;font-weight:700;margin-bottom:6px}input,select,button{width:100%;box-sizing:border-box;padding:12px;border:1px solid #d1d5db;border-radius:9px;font-size:16px}button{background:#ff6b00;color:#fff;border:0;font-weight:700;cursor:pointer;margin-top:14px}.resultado{margin-top:18px;padding:16px;border-radius:12px;background:#f9fafb}.ok{color:#15803d}.erro{color:#b91c1c}.faixa{padding:8px 0;border-bottom:1px solid #eee}.muted{color:#6b7280;font-size:13px}@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="box">
+<h1>🧪 Teste isolado — Faixas por KM</h1>
+<div class="alerta"><b>Ambiente de teste.</b> Esta página não altera o app do passageiro nem o app do motorista. Ela apenas lê a precificação já cadastrada no Firestore e simula o cálculo.</div>
+<div class="grid">
+<div><label>Cidade</label><select id="cidade"><option value="madre">Madre de Deus</option><option value="candeias">Candeias</option><option value="saofrancisco">São Francisco do Conde</option><option value="salvador">Salvador</option></select></div>
+<div><label>Categoria</label><select id="categoria"><option>Carregando...</option></select></div>
+<div><label>Distância (km)</label><input id="km" type="number" min="0" step="0.1" value="5"></div>
+<div><label>Status</label><div id="status" class="muted">Conectando ao Firebase...</div></div>
+</div>
+<button id="calcular">Calcular preço de teste</button>
+<div id="resultado" class="resultado">Aguardando cálculo.</div>
+</div>
+<script type="module">
+import { carregarFirebase } from './firebase-config.js';
+let db=null,fb=null,auth=null,authMod=null, tabela={};
+const $=id=>document.getElementById(id);
+function n(v){const x=Number(v);return Number.isFinite(x)?x:0}
+function normalizarFaixas(faixas){return (Array.isArray(faixas)?faixas:[]).map(f=>({de:n(f.de),ate:n(f.ate),valor:n(f.valor)})).filter(f=>f.ate>=f.de&&f.valor>=0).sort((a,b)=>a.de-b.de)}
+function acharFaixa(faixas,km){return normalizarFaixas(faixas).find(f=>km>=f.de&&km<=f.ate)||null}
+function calcularBase(km,t){const faixa=acharFaixa(t.faixasKm,km);if(faixa)return {valor:faixa.valor,modo:'faixa',faixa};const kmFixo=n(t.kmFixo),valorFixo=n(t.valorFixo),tarifaKm=n(t.tarifaKm??t.tarifakm),bandeirada=n(t.bandeirada);if(kmFixo>0&&valorFixo>0){if(km<=kmFixo)return {valor:valorFixo,modo:'fixo'};return {valor:valorFixo+(km-kmFixo)*tarifaKm,modo:'fixo+km'}}return {valor:bandeirada+km*tarifaKm,modo:'tradicional'}}
+async function carregar(){const cidade=$('cidade').value;$('status').textContent='Lendo preços...';const snap=await fb.getDoc(fb.doc(db,'precos',cidade));tabela=snap.exists()?snap.data():{};const sel=$('categoria');sel.innerHTML='';Object.entries(tabela).filter(([,v])=>v&&typeof v==='object'&&v.ativo!==false).forEach(([codigo,v])=>{const o=document.createElement('option');o.value=codigo;o.textContent=v.nome||codigo;sel.appendChild(o)});$('status').innerHTML='<span class="ok">✓ Preços carregados</span>';calcular()}
+function calcular(){const km=n($('km').value),codigo=$('categoria').value,t=tabela[codigo];if(!t){$('resultado').innerHTML='<span class="erro">Categoria sem configuração.</span>';return}const r=calcularBase(km,t);const minimo=n(t.minimo);const mult=n(t.multiplicador)||1;const antesMin=r.valor*mult;const total=Math.max(antesMin,minimo);const faixaTxt=r.faixa?`${r.faixa.de}–${r.faixa.ate} km = R$ ${r.faixa.valor.toFixed(2)}`:'nenhuma faixa correspondente';$('resultado').innerHTML=`<b>Resultado: R$ ${total.toFixed(2).replace('.',',')}</b><br><br>Categoria: ${t.nome||codigo}<br>Distância: ${km.toFixed(1)} km<br>Modo usado: <b>${r.modo}</b><br>Faixa: ${faixaTxt}<br>Base: R$ ${r.valor.toFixed(2)}<br>Multiplicador: ${mult}×<br>Mínimo: R$ ${minimo.toFixed(2)}<hr><div class="muted">Prioridade do teste: faixasKm → regra antiga kmFixo/valorFixo → bandeirada + tarifa/km. Assim categorias sem faixas continuam compatíveis com a lógica atual.</div>`}
+$('calcular').onclick=calcular;$('cidade').onchange=()=>carregar().catch(e=>{$('status').innerHTML='<span class="erro">'+e.message+'</span>'});
+try{const f=await carregarFirebase('interliga-passageiro');db=f.db;fb=f.fb;auth=f.auth;authMod=f.authMod;authMod.onAuthStateChanged(auth,user=>{if(user){$('status').textContent='Autenticado. Carregando...';carregar().catch(e=>{$('status').innerHTML='<span class="erro">Erro: '+e.message+'</span>'})}else{$('status').innerHTML='<span class="erro">Abra primeiro o app do passageiro e faça login; depois volte a este teste.</span>'}})}catch(e){$('status').innerHTML='<span class="erro">Falha Firebase: '+e.message+'</span>'}
+</script>
+</body>
+</html>
