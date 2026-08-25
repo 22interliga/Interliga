@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Interliga — Admin TESTE</title>
+<style>
+:root{--bg:#060c1a;--s0:#0d1117;--s1:#161b22;--s2:#21262d;--bd:#30363d;--tx:#e6edf3;--t2:#8b949e;--or:#ff6b00;--purple:#7c3aed;--green:#22c55e}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--tx)}
+.app{display:flex;min-height:100vh}.side{width:250px;background:var(--s0);border-right:1px solid var(--bd);position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column;z-index:10}.brand{padding:20px;border-bottom:1px solid var(--bd)}.brand h1{font-size:20px;margin:0}.brand h1 span{color:var(--or)}.test{margin-top:7px;display:inline-block;padding:4px 8px;border-radius:999px;background:#4c1d95;color:#ddd6fe;font-size:11px;font-weight:800}.nav{padding:14px 8px}.nav button{width:100%;border:0;background:transparent;color:var(--t2);text-align:left;padding:12px 14px;border-radius:9px;font-size:14px;cursor:pointer;margin:2px 0}.nav button:hover,.nav button.active{background:var(--s2);color:white}.foot{margin-top:auto;padding:16px;border-top:1px solid var(--bd);font-size:12px;color:var(--t2)}
+.main{margin-left:250px;width:calc(100% - 250px)}.top{height:62px;position:sticky;top:0;z-index:8;background:rgba(13,17,23,.97);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px}.top h2{font-size:17px;margin:0}.top .safe{margin-left:auto;background:#052e16;color:#86efac;border:1px solid #166534;padding:7px 10px;border-radius:999px;font-size:11px;font-weight:800}.content{padding:20px}.page{display:none}.page.active{display:block}.hero{background:linear-gradient(135deg,#111827,#25134d);border:1px solid #4c1d95;border-radius:16px;padding:22px;margin-bottom:18px}.hero h3{margin:0 0 6px;font-size:22px}.hero p{margin:0;color:#c4b5fd;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:var(--s0);border:1px solid var(--bd);border-radius:14px;padding:17px}.card .ico{font-size:26px}.card h4{margin:9px 0 5px}.card p{margin:0;color:var(--t2);font-size:13px;line-height:1.45}.btn{display:inline-block;margin-top:14px;border:0;border-radius:9px;padding:10px 14px;background:var(--or);color:white;font-weight:800;text-decoration:none;cursor:pointer}.btn.purple{background:var(--purple)}.btn.dark{background:var(--s2);border:1px solid var(--bd)}.framewrap{height:calc(100vh - 105px);background:white;border-radius:14px;overflow:hidden;border:1px solid var(--bd)}iframe{border:0;width:100%;height:100%;display:block}.notice{border:1px solid #713f12;background:#2b1d05;color:#fde68a;border-radius:12px;padding:13px;margin-bottom:14px;font-size:13px}.steps{display:grid;gap:10px}.step{display:flex;gap:12px;align-items:flex-start;background:var(--s0);border:1px solid var(--bd);border-radius:12px;padding:14px}.n{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--purple);font-weight:800;flex:none}.step b{display:block;margin-bottom:4px}.step span{color:var(--t2);font-size:13px}.mobile{display:none}@media(max-width:820px){.side{transform:translateX(-100%);transition:.2s}.side.open{transform:none}.main{margin-left:0;width:100%}.mobile{display:inline-flex;margin-right:10px;border:0;background:var(--s2);color:white;border-radius:8px;padding:8px 10px}.grid{grid-template-columns:1fr}.content{padding:12px}.framewrap{height:calc(100vh - 92px)}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side" id="side">
+  <div class="brand"><h1>Interliga <span>Admin</span></h1><div class="test">🧪 AMBIENTE DE TESTE</div></div>
+  <div class="nav">
+    <button class="active" data-page="inicio">🏠 Visão geral</button>
+    <button data-page="precos">💰 Precificação TESTE</button>
+    <button data-page="fluxo">📱 Fluxo Passageiro TESTE</button>
+    <button data-page="roteiro">✅ Roteiro de validação</button>
+  </div>
+  <div class="foot">Este painel foi criado para testar as novas funções sem substituir o Admin atual.</div>
+</aside>
+<main class="main">
+  <header class="top"><button class="mobile" id="menu">☰</button><h2 id="titulo">Visão geral</h2><div class="safe">✓ PRODUÇÃO PRESERVADA</div></header>
+  <div class="content">
+    <section class="page active" id="page-inicio">
+      <div class="hero"><h3>Painel Admin de Teste</h3><p>Aqui ficam concentradas as alterações novas antes de qualquer promoção para o sistema principal.</p></div>
+      <div class="grid">
+        <div class="card"><div class="ico">📏</div><h4>Faixas de KM</h4><p>Cadastre início e fim da faixa, valor fixo e valor por KM.</p><button class="btn purple" data-go="precos">Abrir precificação</button></div>
+        <div class="card"><div class="ico">🧮</div><h4>Simulador</h4><p>Digite a distância e veja faixa aplicada, fórmula e preço final antes de salvar.</p><button class="btn purple" data-go="precos">Abrir simulador</button></div>
+        <div class="card"><div class="ico">📍</div><h4>Ponto de referência</h4><p>Teste o campo flutuante que aparece antes da busca pelo motorista.</p><a class="btn" target="_blank" href="passageiro.html?v=admin-teste">Abrir Passageiro TESTE</a></div>
+      </div>
+    </section>
+    <section class="page" id="page-precos">
+      <div class="notice">🧪 Os valores desta tela são gravados em documentos de teste separados dos preços usados atualmente pelo aplicativo.</div>
+      <div class="framewrap"><iframe src="painel.html?v=admin-teste-2" title="Precificação de teste"></iframe></div>
+    </section>
+    <section class="page" id="page-fluxo">
+      <div class="hero"><h3>Fluxo do Passageiro TESTE</h3><p>Use este acesso para validar preço por faixa de KM e o ponto de referência antes da busca.</p></div>
+      <div class="card"><div class="ico">📱</div><h4>Passageiro TESTE</h4><p>Depois de cadastrar os valores na Precificação TESTE, abra o passageiro, escolha origem e destino e confira o valor exibido. Ao solicitar a corrida, a caixa do ponto de referência deve aparecer antes da busca.</p><a class="btn" target="_blank" href="passageiro.html?v=admin-teste">Abrir Passageiro TESTE</a></div>
+    </section>
+    <section class="page" id="page-roteiro">
+      <div class="hero"><h3>Roteiro de validação</h3><p>Só depois de estes itens passarem é que uma mudança deve ser considerada para a versão principal.</p></div>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div><b>Cadastrar faixas</b><span>Definir De KM, Até KM, Valor fixo e Valor por KM para a categoria desejada.</span></div></div>
+        <div class="step"><div class="n">2</div><div><b>Simular preço</b><span>Digitar uma distância e conferir faixa, fórmula, mínimo, multiplicador e preço final.</span></div></div>
+        <div class="step"><div class="n">3</div><div><b>Salvar no ambiente de teste</b><span>Confirmar a mensagem de gravação no documento de teste da cidade.</span></div></div>
+        <div class="step"><div class="n">4</div><div><b>Conferir no Passageiro TESTE</b><span>Selecionar origem e destino e verificar se o preço corresponde à faixa configurada.</span></div></div>
+        <div class="step"><div class="n">5</div><div><b>Validar ponto de referência</b><span>Tocar em solicitar corrida e confirmar que a caixa flutuante aparece antes da busca pelo motorista.</span></div></div>
+      </div>
+    </section>
+  </div>
+</main>
+</div>
+<script>
+const titles={inicio:'Visão geral',precos:'Precificação TESTE',fluxo:'Fluxo Passageiro TESTE',roteiro:'Roteiro de validação'};
+function abrir(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));document.getElementById('page-'+p)?.classList.add('active');document.getElementById('titulo').textContent=titles[p]||'Admin TESTE';document.getElementById('side').classList.remove('open')}
+document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>abrir(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>abrir(b.dataset.go));document.getElementById('menu').onclick=()=>document.getElementById('side').classList.toggle('open');
+</script>
+</body></html>
