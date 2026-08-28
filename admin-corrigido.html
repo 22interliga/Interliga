@@ -17,10 +17,16 @@ frame.addEventListener('load', () => {
   try {
     const doc = frame.contentDocument;
     if (!doc || doc.getElementById('interliga-admin-fixes')) return;
-    const script = doc.createElement('script');
-    script.id = 'interliga-admin-fixes';
-    script.src = 'admin-fixes.js?v=1';
-    doc.body.appendChild(script);
+
+    const fixes = doc.createElement('script');
+    fixes.id = 'interliga-admin-fixes';
+    fixes.src = 'admin-fixes.js?v=1';
+    doc.body.appendChild(fixes);
+
+    const selfie = doc.createElement('script');
+    selfie.id = 'interliga-admin-selfie-seguranca';
+    selfie.src = 'admin-selfie-seguranca.js?v=1';
+    doc.body.appendChild(selfie);
   } catch (e) {
     console.error('[admin-corrigido] não foi possível carregar as correções:', e);
   }
