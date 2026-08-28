@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interliga — Admin Corrigido (Teste)</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#060C1A}
+#adminFrame{display:block;width:100%;height:100%;border:0}
+</style>
+</head>
+<body>
+<iframe id="adminFrame" src="admin.html" title="Interliga Admin"></iframe>
+<script>
+const frame = document.getElementById('adminFrame');
+frame.addEventListener('load', () => {
+  try {
+    const doc = frame.contentDocument;
+    if (!doc || doc.getElementById('interliga-admin-fixes')) return;
+    const script = doc.createElement('script');
+    script.id = 'interliga-admin-fixes';
+    script.src = 'admin-fixes.js?v=1';
+    doc.body.appendChild(script);
+  } catch (e) {
+    console.error('[admin-corrigido] não foi possível carregar as correções:', e);
+  }
+});
+</script>
+</body>
+</html>
