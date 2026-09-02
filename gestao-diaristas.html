@@ -632,6 +632,32 @@ function saveServico(id){
   save(); closeSheet(); render(); toast(rec==='nenhuma'?'Serviço agendado':'12 serviços criados');
 }
 
+/* mensagens de WhatsApp */
+function fmtDataMsg(s){ const d=parseISO(s); return WDL[d.getDay()]+', '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
+function msgDiarista(s){
+  const c=cliente(s.clienteId), d=diarista(s.diaristaId);
+  let m=`Olá ${d?d.nome:''}! Você tem uma faxina agendada:\n\n`;
+  m+=`📅 ${fmtDataMsg(s.data)} às ${s.hora||''}\n`;
+  m+=`👤 Cliente: ${c?c.nome:'-'}\n`;
+  if(c&&c.endereco) m+=`📍 Endereço: ${c.endereco}\n`;
+  if(c&&c.obs) m+=`📝 Detalhes do local: ${c.obs}\n`;
+  if(s.obs) m+=`📌 Observação: ${s.obs}\n`;
+  m+=`\n💵 Valor a receber: ${fmt(repasse(s))}\n\nQualquer coisa, me avise. Obrigado!`;
+  return m;
+}
+function msgCliente(s){
+  const c=cliente(s.clienteId), d=diarista(s.diaristaId);
+  let m=`Olá ${c?c.nome:''}! Confirmando sua faxina:\n\n`;
+  m+=`📅 ${fmtDataMsg(s.data)} às ${s.hora||''}\n`;
+  m+=`🧹 Profissional: ${d?d.nome:'-'}\n`;
+  m+=`💰 Valor da diária: ${fmt(s.valor)}\n`;
+  m+=`💳 Pagamento: ${s.formaPagamento||'-'}\n`;
+  if(s.formaPagamento==='PIX' && db.config.chavePix) m+=`🔑 Chave PIX: ${db.config.chavePix}\n`;
+  if(s.obs) m+=`📝 ${s.obs}\n`;
+  m+=`\nQualquer dúvida, estou à disposição!`;
+  return m;
+}
+
 /* detalhe do serviço (ações rápidas) */
 function openServico(id){
   const s=db.servicos.find(x=>x.id===id); if(!s)return;
@@ -655,7 +681,8 @@ function openServico(id){
         <button class="btn ${s.pagoCliente?'':'primary'}" onclick="mark('${id}','pago')">${s.pagoCliente?'Desmarcar recebido':'Recebi do cliente'}</button>
         <button class="btn ${s.repassado?'':'ok'}" onclick="mark('${id}','repasse')">${s.repassado?'Desmarcar repasse':'Repassei à diarista'}</button>
       </div>
-      ${c&&c.whatsapp?`<a class="btn block" href="${waLink(c.whatsapp,`Olá ${c.nome}! Passando pra confirmar a limpeza de ${fmtDateFull(s.data)} às ${s.hora}. Podemos manter?`)}" target="_blank">${svg(IC.wa)}Confirmar com o cliente</a>`:''}
+      ${d&&d.whatsapp?`<a class="btn block" href="${waLink(d.whatsapp, msgDiarista(s))}" target="_blank">${svg(IC.wa)}Avisar diarista · endereço e local</a>`:''}
+      ${c&&c.whatsapp?`<a class="btn block" href="${waLink(c.whatsapp, msgCliente(s))}" target="_blank">${svg(IC.wa)}Enviar ao cliente · valor e PIX</a>`:''}
       <div class="two">
         <button class="btn" onclick="formServico('${id}')">${svg(IC.edit)}Editar</button>
         <button class="btn danger-o" onclick="delServico('${id}')">${svg(IC.trash)}Excluir</button>
@@ -678,6 +705,7 @@ function openConfig(){
   openSheet(`<h2>Configurações</h2>
     <div class="field"><label>Nome do negócio</label><input id="c_neg" value="${esc(db.config.negocio||'')}"></div>
     <div class="field"><label>Comissão padrão (%)</label><input id="c_com" type="number" value="${db.config.comissao}" inputmode="numeric"><div class="hint">Usada ao cadastrar novas diaristas.</div></div>
+    <div class="field"><label>Chave PIX (para receber)</label><input id="c_pix" value="${esc(db.config.chavePix||'')}" placeholder="CPF, telefone, e-mail ou chave aleatória"><div class="hint">Entra no aviso de pagamento enviado ao cliente.</div></div>
     <button class="btn primary block" onclick="saveConfig()">${svg(IC.check)}Salvar</button>
     <div class="divider"></div>
     <div class="section-h" style="margin-top:0">Backup dos dados</div>
@@ -690,7 +718,7 @@ function openConfig(){
     <button class="btn ghost block" style="color:var(--danger);margin-top:10px" onclick="zerar()">Apagar todos os dados</button>
     <p class="tiny muted" style="text-align:center;margin-top:14px">Feito para ${esc(db.config.negocio||'sua operação')} · v1</p>`);
 }
-function saveConfig(){ db.config.negocio=val('c_neg')||'Gestão de Limpeza'; db.config.comissao=parseInt(val('c_com'))||0; save(); closeSheet(); render(); toast('Configurações salvas'); }
+function saveConfig(){ db.config.negocio=val('c_neg')||'Gestão de Limpeza'; db.config.comissao=parseInt(val('c_com'))||0; db.config.chavePix=val('c_pix').trim(); save(); closeSheet(); render(); toast('Configurações salvas'); }
 function exportar(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
