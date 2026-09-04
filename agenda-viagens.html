@@ -269,6 +269,7 @@
   <!-- FINANCEIRO -->
   <section class="view" id="v-fin">
     <div class="filters" id="fin-view" style="padding-bottom:10px">
+      <button class="chip" data-v="dia">Dia</button>
       <button class="chip sel" data-v="mes">Mês</button>
       <button class="chip" data-v="ano">Ano</button>
     </div>
@@ -497,6 +498,7 @@ function hhmm(min){ min=Number(min)||0; const h=Math.floor(min/60), m=min%60; re
 function calcTotal(v){ return num(v.valorCorrida) + (Number(v.esperaMin)||0)/60*num(v.valorHoraEspera); }
 const STLBL={aberto:'Em aberto',pago:'Pago',quitado:'Quitado'};
 const monthKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+const dayKey=d=>monthKey(d)+'-'+String(d.getDate()).padStart(2,'0');
 
 function dataLabel(iso){
   if(!iso) return 'Sem data';
@@ -586,12 +588,13 @@ function cardHTML(v){
 
 /* ===== Financeiro ===== */
 function bindFin(){
-  const step=d=>{ if(finView==='ano') fMonth.setFullYear(fMonth.getFullYear()+d); else fMonth.setMonth(fMonth.getMonth()+d); renderFin(); };
+  const step=d=>{ if(finView==='ano') fMonth.setFullYear(fMonth.getFullYear()+d); else if(finView==='dia') fMonth.setDate(fMonth.getDate()+d); else fMonth.setMonth(fMonth.getMonth()+d); renderFin(); };
   $('#m-prev').onclick=()=>step(-1);
   $('#m-lbl').onclick=openMonthPicker;
   $('#m-next').onclick=()=>step(1);
   $$('#fin-view button').forEach(b=>b.onclick=()=>{
-    finView=b.dataset.v; $$('#fin-view button').forEach(x=>x.classList.toggle('sel',x.dataset.v===finView)); renderFin();
+    finView=b.dataset.v; if(finView==='dia') fMonth=new Date();
+    $$('#fin-view button').forEach(x=>x.classList.toggle('sel',x.dataset.v===finView)); renderFin();
   });
   $$('#fin-tipo button').forEach(b=>b.onclick=()=>{finTipo=b.dataset.t;renderFin();});
   $('#add-lanc').onclick=()=>lancSheet(null);
@@ -618,10 +621,11 @@ function movItem(m){ const c=catById(m.catId);
 
 function renderFin(){
   const ano=fMonth.getFullYear();
-  const key = finView==='ano' ? String(ano) : monthKey(fMonth);
-  const ini = finView==='ano' ? (ano+'-01-01') : (key+'-01');
-  const periodo = finView==='ano' ? 'ano' : 'mês';
-  $('#m-lbl').textContent = finView==='ano' ? String(ano) : fMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  let key, ini, periodo, label;
+  if(finView==='ano'){ key=String(ano); ini=ano+'-01-01'; periodo='ano'; label=String(ano); }
+  else if(finView==='dia'){ key=dayKey(fMonth); ini=key; periodo='dia'; label=dataLabel(key); }
+  else { key=monthKey(fMonth); ini=key+'-01'; periodo='mês'; label=fMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}); }
+  $('#m-lbl').textContent=label;
   const mov=movimentos(key);
   const real=mov.filter(m=>isReal(m.status)), prev=mov.filter(m=>!isReal(m.status));
   const ent=real.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+m.valor,0);
