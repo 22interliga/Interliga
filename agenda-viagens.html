@@ -178,6 +178,9 @@
   .m-lbl-btn{cursor:pointer}
   #dia-info{display:none;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin:-2px 0 14px;font-size:13px}
   #dia-info.warn{border-color:var(--red)}
+  .searchbar{margin-bottom:12px}
+  .searchbar input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--ink);font-size:15px;outline:none}
+  .searchbar input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #3b6ef633}
   #dia-info .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
   #dia-info .row.hit{color:var(--red);font-weight:700}
   #dia-info .row .t{font-family:var(--mono);color:var(--muted)}
@@ -262,6 +265,7 @@
 <main>
   <!-- AGENDA -->
   <section class="view active" id="v-agenda">
+    <div class="searchbar"><input id="ag-busca" placeholder="🔍 Buscar por cliente, origem ou destino"></div>
     <div class="strip" id="strip"></div>
     <div id="agenda-list"></div>
   </section>
@@ -457,7 +461,8 @@ async function cloudSet(key, arr){
 
 /* ===== Estado ===== */
 let VIAGENS=[], LANCS=[], CATS=[];
-let filtroRec='todos', formStatus='aberto', formNotif=false, formConflitoPrev=false;
+let filtroRec='todos', formStatus='aberto', formNotif=false, formConflitoPrev=false, agendaBusca='';
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 let fMonth=new Date(); fMonth.setDate(1);
 let finTipo='saida', catTipo='saida', finView='mes';
 
@@ -560,7 +565,14 @@ function renderAgenda(){
     el.innerHTML=`<div class="empty"><div class="big">🗓️</div><b>Nenhuma viagem agendada</b><br>Toque no botão <b>+</b> para registrar a primeira corrida.</div>`;
     return;
   }
-  const ord=[...VIAGENS].sort((a,b)=>(a.data+a.saida).localeCompare(b.data+b.saida));
+  let lista=VIAGENS;
+  if(agendaBusca){ const q=norm(agendaBusca);
+    lista=VIAGENS.filter(v=>norm(`${v.cliente} ${v.origem} ${v.destino} ${v.contato}`).includes(q)); }
+  if(!lista.length){
+    el.innerHTML=`<div class="empty"><div class="big">🔍</div><b>Nada encontrado</b><br>Nenhuma viagem para “${agendaBusca}”.</div>`;
+    return;
+  }
+  const ord=[...lista].sort((a,b)=>(a.data+a.saida).localeCompare(b.data+b.saida));
   const hoje=new Date().toISOString().slice(0,10);
   let html='', dia=null;
   for(const v of ord){
@@ -1090,7 +1102,8 @@ function scheduleAll(){ timers.forEach(clearTimeout);timers.length=0;
       new Notification('Viagem de '+v.cliente,{body:`Saída ${v.saida} · ${v.origem||''} → ${v.destino||''}`}); },delay)); }); }
 
 /* ===== Navegação ===== */
-function bindNav(){ $$('.nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab)); }
+function bindNav(){ $$('.nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+  $('#ag-busca').addEventListener('input',e=>{ agendaBusca=e.target.value.trim(); renderAgenda(); }); }
 function showView(tab){ $$('.view').forEach(v=>v.classList.remove('active')); $('#v-'+tab).classList.add('active');
   $('#fab').classList.toggle('show',tab==='agenda');
   const titles={agenda:'Agenda de Viagens',fin:'Controle Financeiro',receb:'Recebimentos',cats:'Categorias',form:'Viagem'};
