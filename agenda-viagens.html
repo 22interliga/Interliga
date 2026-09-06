@@ -565,11 +565,13 @@ function renderAgenda(){
     el.innerHTML=`<div class="empty"><div class="big">🗓️</div><b>Nenhuma viagem agendada</b><br>Toque no botão <b>+</b> para registrar a primeira corrida.</div>`;
     return;
   }
-  let lista=VIAGENS;
+  let lista=VIAGENS.filter(v=>v.status==='aberto');   // agenda = só o que está em aberto
   if(agendaBusca){ const q=norm(agendaBusca);
-    lista=VIAGENS.filter(v=>norm(`${v.cliente} ${v.origem} ${v.destino} ${v.contato}`).includes(q)); }
+    lista=lista.filter(v=>norm(`${v.cliente} ${v.origem} ${v.destino} ${v.contato}`).includes(q)); }
   if(!lista.length){
-    el.innerHTML=`<div class="empty"><div class="big">🔍</div><b>Nada encontrado</b><br>Nenhuma viagem para “${agendaBusca}”.</div>`;
+    el.innerHTML = agendaBusca
+      ? `<div class="empty"><div class="big">🔍</div><b>Nada encontrado</b><br>Nenhuma viagem em aberto para “${agendaBusca}”.</div>`
+      : `<div class="empty"><div class="big">✅</div><b>Nenhuma viagem em aberto</b><br>As viagens pagas ou quitadas ficam em <b>Recebimentos</b>.</div>`;
     return;
   }
   const ord=[...lista].sort((a,b)=>(a.data+a.saida).localeCompare(b.data+b.saida));
