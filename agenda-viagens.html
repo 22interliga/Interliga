@@ -265,7 +265,7 @@
 <main>
   <!-- AGENDA -->
   <section class="view active" id="v-agenda">
-    <div class="searchbar"><input id="ag-busca" placeholder="🔍 Buscar por cliente, origem ou destino"></div>
+    <div class="searchbar"><input id="ag-busca" placeholder="🔍 Buscar por cliente, anotação, origem ou destino"></div>
     <div class="strip" id="strip"></div>
     <div id="agenda-list"></div>
   </section>
@@ -567,7 +567,7 @@ function renderAgenda(){
   }
   let lista=VIAGENS.filter(v=>v.status==='aberto');   // agenda = só o que está em aberto
   if(agendaBusca){ const q=norm(agendaBusca);
-    lista=lista.filter(v=>norm(`${v.cliente} ${v.origem} ${v.destino} ${v.contato}`).includes(q)); }
+    lista=lista.filter(v=>norm(`${v.cliente} ${v.obs} ${v.origem} ${v.destino} ${v.contato}`).includes(q)); }
   if(!lista.length){
     el.innerHTML = agendaBusca
       ? `<div class="empty"><div class="big">🔍</div><b>Nada encontrado</b><br>Nenhuma viagem em aberto para “${agendaBusca}”.</div>`
