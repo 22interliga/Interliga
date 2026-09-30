@@ -288,11 +288,37 @@ textarea.inp { resize: vertical; }
               <div class="stat-card"><div class="stat-icon">🛒</div><div class="stat-val">—</div><div class="stat-lbl">Pedidos Interifood</div><div class="stat-chg" style="color:var(--t2);font-size:11px;">Ainda não conectado</div></div>
               <div class="stat-card"><div class="stat-icon">🚗</div><div class="stat-val" id="dash-motoristas-online">—</div><div class="stat-lbl">Motoristas online</div></div>
             </div>
+            <div class="stat-grid">
+              <div class="stat-card"><div class="stat-icon">⏳</div><div class="stat-val" id="dash-aguardando">—</div><div class="stat-lbl">Aguardando motorista</div></div>
+              <div class="stat-card"><div class="stat-icon">🔵</div><div class="stat-val" id="dash-aceitas">—</div><div class="stat-lbl">Corridas aceitas</div></div>
+              <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-val" id="dash-canceladas-hoje">—</div><div class="stat-lbl">Canceladas hoje</div></div>
+              <div class="stat-card"><div class="stat-icon">⚫</div><div class="stat-val" id="dash-motoristas-offline">—</div><div class="stat-lbl">Motoristas offline</div></div>
+            </div>
+
+            <!-- CENTRAL DE ALERTAS OPERACIONAIS -->
+            <div class="card" id="central-alertas" style="margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                <div>
+                  <div class="ct">🚨 Central de Alertas Operacionais</div>
+                  <div style="font-size:12px;color:var(--t2);margin-top:4px;">
+                    Situações da operação que precisam de atenção
+                  </div>
+                </div>
+                <span class="badge green" id="alertas-resumo">Verificando...</span>
+              </div>
+
+              <div id="alertas-operacionais-lista" style="display:flex;flex-direction:column;gap:8px;">
+                <div style="padding:14px;border:1px solid var(--bd);border-radius:10px;color:var(--t2);">
+                  Carregando situação operacional...
+                </div>
+              </div>
+            </div>
+
             <div class="card">
               <div class="ct" style="margin-bottom:14px;">Atividade Recente</div>
               <div class="tbl-wrap">
                 <table>
-                  <thead><tr><th>ID</th><th>PASSAGEIRO</th><th>VALOR</th><th>STATUS</th><th>HORA</th></tr></thead>
+                  <thead><tr><th>CORRIDA</th><th>PASSAGEIRO</th><th>VALOR</th><th>STATUS</th><th>HORA</th></tr></thead>
                   <tbody id="dash-atividade-recente"><tr><td colspan="5" style="text-align:center;color:var(--t2);padding:24px;">Carregando...</td></tr></tbody>
                 </table>
               </div>
@@ -1148,13 +1174,16 @@ async function iniciarFirebaseAdmin() {
     const authMod = window.__FB.authmod;
     fbAdmin = { ...firestoreMod, ...authMod };
     const firebaseConfig = {
-      apiKey: "AIzaSyAENmAi_4xE4jjcSGi4tAu9LlEafHEbKHc",
-      authDomain: "interliga-mobilidade.firebaseapp.com",
-      projectId: "interliga-mobilidade",
-      storageBucket: "interliga-mobilidade.firebasestorage.app",
-      messagingSenderId: "1071971171958",
-      appId: "1:1071971171958:web:b04980bd1abd4dcc7c2957",
+      apiKey: "AIzaSyBwMMsff1hV-6vDuQb3EK-EvSkkhYVBRFE",
+      authDomain: "interliga-homologacao-eb0f2.firebaseapp.com",
+      projectId: "interliga-homologacao-eb0f2",
+      storageBucket: "interliga-homologacao-eb0f2.firebasestorage.app",
+      messagingSenderId: "997118774501",
+      appId: "1:997118774501:web:59f56ea39ed070986d180c",
     };
+    if (firebaseConfig.projectId === 'interliga-mobilidade') {
+      throw new Error('BLOQUEIO DE SEGURANÇA: produção não permitida neste painel de teste.');
+    }
     const fbApp = initializeApp(firebaseConfig);
     dbAdmin = fbAdmin.getFirestore(fbApp);
     authAdmin = fbAdmin.getAuth(fbApp);
@@ -1685,13 +1714,16 @@ async function salvarFranqueado(){
     await esperarFB();
     const { initializeApp, deleteApp } = window.__FB;
     const firebaseConfig = {
-      apiKey: "AIzaSyAENmAi_4xE4jjcSGi4tAu9LlEafHEbKHc",
-      authDomain: "interliga-mobilidade.firebaseapp.com",
-      projectId: "interliga-mobilidade",
-      storageBucket: "interliga-mobilidade.firebasestorage.app",
-      messagingSenderId: "1071971171958",
-      appId: "1:1071971171958:web:b04980bd1abd4dcc7c2957",
+      apiKey: "AIzaSyBwMMsff1hV-6vDuQb3EK-EvSkkhYVBRFE",
+      authDomain: "interliga-homologacao-eb0f2.firebaseapp.com",
+      projectId: "interliga-homologacao-eb0f2",
+      storageBucket: "interliga-homologacao-eb0f2.firebasestorage.app",
+      messagingSenderId: "997118774501",
+      appId: "1:997118774501:web:59f56ea39ed070986d180c",
     };
+    if (firebaseConfig.projectId === 'interliga-mobilidade') {
+      throw new Error('BLOQUEIO DE SEGURANÇA: produção não permitida neste painel de teste.');
+    }
     const appSecundario = initializeApp(firebaseConfig, 'criar-franqueado-' + Date.now());
     const authSecundario = fbAdmin.getAuth(appSecundario);
     const cred = await fbAdmin.createUserWithEmailAndPassword(authSecundario, email, senha);
@@ -2458,13 +2490,16 @@ async function cadastrarMotoristaManual(){
     await esperarFB();
     const { initializeApp, deleteApp } = window.__FB;
     const firebaseConfig = {
-      apiKey: "AIzaSyAENmAi_4xE4jjcSGi4tAu9LlEafHEbKHc",
-      authDomain: "interliga-mobilidade.firebaseapp.com",
-      projectId: "interliga-mobilidade",
-      storageBucket: "interliga-mobilidade.firebasestorage.app",
-      messagingSenderId: "1071971171958",
-      appId: "1:1071971171958:web:b04980bd1abd4dcc7c2957",
+      apiKey: "AIzaSyBwMMsff1hV-6vDuQb3EK-EvSkkhYVBRFE",
+      authDomain: "interliga-homologacao-eb0f2.firebaseapp.com",
+      projectId: "interliga-homologacao-eb0f2",
+      storageBucket: "interliga-homologacao-eb0f2.firebasestorage.app",
+      messagingSenderId: "997118774501",
+      appId: "1:997118774501:web:59f56ea39ed070986d180c",
     };
+    if (firebaseConfig.projectId === 'interliga-mobilidade') {
+      throw new Error('BLOQUEIO DE SEGURANÇA: produção não permitida neste painel de teste.');
+    }
     const appSecundario = initializeApp(firebaseConfig, 'criar-motorista-' + Date.now());
     const authSecundario = fbAdmin.getAuth(appSecundario);
     const cred = await fbAdmin.createUserWithEmailAndPassword(authSecundario, email, senha);
@@ -2684,13 +2719,96 @@ async function carregarDashboard(){
     document.getElementById('dash-corridas-hoje').textContent = corridasHoje.length;
     document.getElementById('dash-motoristas-online').textContent = motoristasOnline;
 
+    const aguardando = corridas.filter(c => c.status === 'aguardando').length;
+    const aceitas = corridas.filter(c => c.status === 'aceita').length;
+    const canceladasHoje = corridasHoje.filter(c => c.status === 'cancelada').length;
+    const motoristasOffline = motoristas.filter(m => !m.online).length;
+
+    document.getElementById('dash-aguardando').textContent = aguardando;
+    document.getElementById('dash-aceitas').textContent = aceitas;
+    document.getElementById('dash-canceladas-hoje').textContent = canceladasHoje;
+    document.getElementById('dash-motoristas-offline').textContent = motoristasOffline;
+
+    // Central de Alertas — somente dados já carregados no Dashboard.
+    // 5 min é um limite visual temporário de homologação, NÃO um SLA.
+    const agoraMs = Date.now();
+    const limiteAlertaAguardandoMs = 5 * 60 * 1000;
+
+    const limiteCorridaAntigaMs = 24 * 60 * 60 * 1000;
+
+    const aguardandoAcimaLimite = [];
+    const corridasAntigasAbertas = [];
+
+    corridas.forEach(c => {
+      if (c.status !== 'aguardando') return;
+      const ms = c.criadoEm?.toMillis
+        ? c.criadoEm.toMillis()
+        : (c.criadoEm ? new Date(c.criadoEm).getTime() : null);
+      if (!ms) return;
+
+      const idadeMs = agoraMs - ms;
+      if (idadeMs >= limiteCorridaAntigaMs) {
+        corridasAntigasAbertas.push(c);
+      } else if (idadeMs >= limiteAlertaAguardandoMs) {
+        aguardandoAcimaLimite.push(c);
+      }
+    });
+
+    const listaAlertas = document.getElementById('alertas-operacionais-lista');
+    const resumoAlertas = document.getElementById('alertas-resumo');
+    const alertas = [];
+
+    if (corridasAntigasAbertas.length > 0) {
+      alertas.push(
+        `<div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+          <b>⚠️ ${corridasAntigasAbertas.length} corrida(s) antiga(s) ainda aguardando</b>
+          <div style="font-size:12px;color:var(--t2);margin-top:4px;">
+            Há corridas abertas há 24 horas ou mais. Verifique se são testes antigos ou se precisam de tratamento operacional.
+          </div>
+        </div>`
+      );
+    }
+
+    if (aguardandoAcimaLimite.length > 0) {
+      alertas.push(
+        `<div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+          <b>⏳ ${aguardandoAcimaLimite.length} corrida(s) aguardando há mais de 5 min</b>
+          <div style="font-size:12px;color:var(--t2);margin-top:4px;">
+            Verifique a disponibilidade de motoristas e a distribuição das corridas.
+          </div>
+        </div>`
+      );
+    }
+
+    if (aguardando > 0 && motoristasOnline === 0) {
+      alertas.push(
+        `<div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+          <b>🚨 Há corrida aguardando e nenhum motorista online</b>
+          <div style="font-size:12px;color:var(--t2);margin-top:4px;">
+            A operação pode precisar de intervenção.
+          </div>
+        </div>`
+      );
+    }
+
+    if (alertas.length === 0) {
+      listaAlertas.innerHTML =
+        '<div style="padding:14px;border:1px solid var(--bd);border-radius:10px;color:var(--t2);">✅ Nenhum alerta operacional neste momento.</div>';
+      resumoAlertas.textContent = 'Operação normal';
+      resumoAlertas.className = 'badge green';
+    } else {
+      listaAlertas.innerHTML = alertas.join('');
+      resumoAlertas.textContent = `${alertas.length} alerta(s)`;
+      resumoAlertas.className = 'badge red';
+    }
+
     const tbody = document.getElementById('dash-atividade-recente');
     const recentes = corridas.slice(0, 10);
     if (recentes.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--t2);padding:24px;">Nenhuma corrida ainda</td></tr>';
     } else {
       tbody.innerHTML = recentes.map(c => `
-        <tr><td>${(c.origem||'—').slice(0,20)} → ${(c.destino||'—').slice(0,20)}</td><td>${formatMoeda(c.preco)}</td><td>${badgeStatusCorrida(c.status)}</td><td>${formatHora(c.criadoEm)}</td></tr>
+        <tr><td>${(c.origem||'—').slice(0,20)} → ${(c.destino||'—').slice(0,20)}</td><td>${c.passageiroNome || '—'}</td><td>${formatMoeda(c.preco)}</td><td>${badgeStatusCorrida(c.status)}</td><td>${formatHora(c.criadoEm)}</td></tr>
       `).join('');
     }
   } catch (e) {
