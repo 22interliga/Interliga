@@ -2761,7 +2761,7 @@ async function carregarDashboard(){
 
     if (corridasAntigasAbertas.length > 0) {
       alertas.push(
-        `<div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+        `<div onclick="abrirCorridasComFiltro('aguardando')" style="padding:12px;border:1px solid var(--bd);border-radius:10px;cursor:pointer;" title="Ver corridas aguardando">
           <b>⚠️ ${corridasAntigasAbertas.length} corrida(s) antiga(s) ainda aguardando</b>
           <div style="font-size:12px;color:var(--t2);margin-top:4px;">
             Há corridas abertas há 24 horas ou mais. Verifique se são testes antigos ou se precisam de tratamento operacional.
@@ -2772,7 +2772,7 @@ async function carregarDashboard(){
 
     if (aguardandoAcimaLimite.length > 0) {
       alertas.push(
-        `<div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+        `<div onclick="abrirCorridasComFiltro('aguardando')" style="padding:12px;border:1px solid var(--bd);border-radius:10px;cursor:pointer;" title="Ver corridas aguardando">
           <b>⏳ ${aguardandoAcimaLimite.length} corrida(s) aguardando há mais de 5 min</b>
           <div style="font-size:12px;color:var(--t2);margin-top:4px;">
             Verifique a disponibilidade de motoristas e a distribuição das corridas.
@@ -2783,7 +2783,7 @@ async function carregarDashboard(){
 
     if (aguardando > 0 && motoristasOnline === 0) {
       alertas.push(
-        `<div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+        `<div onclick="abrirMotoristasComFiltro('offline')" style="padding:12px;border:1px solid var(--bd);border-radius:10px;cursor:pointer;" title="Ver motoristas offline">
           <b>🚨 Há corrida aguardando e nenhum motorista online</b>
           <div style="font-size:12px;color:var(--t2);margin-top:4px;">
             A operação pode precisar de intervenção.
