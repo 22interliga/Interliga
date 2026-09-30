@@ -289,7 +289,7 @@ textarea.inp { resize: vertical; }
               <div class="stat-card"><div class="stat-icon">🚗</div><div class="stat-val" id="dash-motoristas-online">—</div><div class="stat-lbl">Motoristas online</div></div>
             </div>
             <div class="stat-grid">
-              <div class="stat-card"><div class="stat-icon">⏳</div><div class="stat-val" id="dash-aguardando">—</div><div class="stat-lbl">Aguardando motorista</div></div>
+              <div class="stat-card" onclick="abrirCorridasComFiltro('aguardando')" style="cursor:pointer;" title="Ver corridas aguardando motorista"><div class="stat-icon">⏳</div><div class="stat-val" id="dash-aguardando">—</div><div class="stat-lbl">Aguardando motorista</div></div>
               <div class="stat-card"><div class="stat-icon">🔵</div><div class="stat-val" id="dash-aceitas">—</div><div class="stat-lbl">Corridas aceitas</div></div>
               <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-val" id="dash-canceladas-hoje">—</div><div class="stat-lbl">Canceladas hoje</div></div>
               <div class="stat-card"><div class="stat-icon">⚫</div><div class="stat-val" id="dash-motoristas-offline">—</div><div class="stat-lbl">Motoristas offline</div></div>
@@ -407,6 +407,7 @@ textarea.inp { resize: vertical; }
             </div>
             <div class="filter-tabs">
               <button class="filter-btn active" data-corrida-filtro="todas">Todas</button>
+              <button class="filter-btn" data-corrida-filtro="aguardando">⏳ Aguardando</button>
               <button class="filter-btn" data-corrida-filtro="andamento">🔵 Em andamento</button>
               <button class="filter-btn" data-corrida-filtro="finalizada">✅ Concluídas</button>
               <button class="filter-btn" data-corrida-filtro="cancelada">❌ Canceladas</button>
@@ -2956,12 +2957,23 @@ document.querySelectorAll('[data-mot-filtro]').forEach(btn => {
   });
 });
 
+function abrirCorridasComFiltro(filtro){
+  showSection('corridas');
+
+  document.querySelectorAll('[data-corrida-filtro]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.corridaFiltro === filtro);
+  });
+
+  carregarCorridas(filtro);
+}
+
 async function carregarCorridas(filtro = 'todas'){
   try {
     const corridas = _todasCorridasCache.length ? _todasCorridasCache : await buscarTodasCorridas();
     _todasCorridasCache = corridas;
 
     let filtrados = corridas;
+    if (filtro === 'aguardando') filtrados = corridas.filter(c => c.status === 'aguardando');
     if (filtro === 'andamento') filtrados = corridas.filter(c => c.status === 'aceita' || c.status === 'aguardando');
     if (filtro === 'finalizada') filtrados = corridas.filter(c => c.status === 'finalizada');
     if (filtro === 'cancelada') filtrados = corridas.filter(c => c.status === 'cancelada' || c.status === 'recusada');
