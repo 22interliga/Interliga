@@ -314,6 +314,34 @@ textarea.inp { resize: vertical; }
               </div>
             </div>
 
+            <!-- DESEMPENHO DOS MOTORISTAS — homologação -->
+            <div class="card" id="dash-desempenho-motoristas" style="margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                <div>
+                  <div class="ct">🏆 Desempenho dos Motoristas</div>
+                  <div style="font-size:12px;color:var(--t2);margin-top:4px;">Indicadores operacionais usando dados já carregados no painel</div>
+                </div>
+              </div>
+              <div class="g2">
+                <div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+                  <b>🚕 Produtividade</b>
+                  <div id="dash-desempenho-produtividade" style="font-size:12px;color:var(--t2);margin-top:6px;">Carregando...</div>
+                </div>
+                <div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+                  <b>⭐ Qualidade</b>
+                  <div id="dash-desempenho-qualidade" style="font-size:12px;color:var(--t2);margin-top:6px;">Carregando...</div>
+                </div>
+                <div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+                  <b>❌ Cancelamentos</b>
+                  <div id="dash-desempenho-cancelamentos" style="font-size:12px;color:var(--t2);margin-top:6px;">Carregando...</div>
+                </div>
+                <div style="padding:12px;border:1px solid var(--bd);border-radius:10px;">
+                  <b>🔄 Flexibilidade</b>
+                  <div style="font-size:12px;color:var(--t2);margin-top:6px;">Indicador em validação — sem pontuação definida.</div>
+                </div>
+              </div>
+            </div>
+
             <div class="card">
               <div class="ct" style="margin-bottom:14px;">Atividade Recente</div>
               <div class="tbl-wrap">
@@ -2801,6 +2829,73 @@ async function carregarDashboard(){
       listaAlertas.innerHTML = alertas.join('');
       resumoAlertas.textContent = `${alertas.length} alerta(s)`;
       resumoAlertas.className = 'badge red';
+    }
+
+    // Desempenho dos Motoristas — usa somente dados já carregados no Dashboard.
+    // Não cria nota geral e não interfere na distribuição de corridas.
+    const desempenho = motoristas.map(m => {
+      const finalizadas = corridas.filter(c =>
+        c.motoristaId === m.id && c.status === 'finalizada'
+      );
+
+      const canceladasPeloMotorista = corridas.filter(c =>
+        c.motoristaId === m.id &&
+        c.status === 'cancelada' &&
+        c.canceladoPor === 'motorista'
+      );
+
+      return {
+        id: m.id,
+        nome: m.nome || 'Sem nome',
+        finalizadas: finalizadas.length,
+        ganhos: finalizadas.reduce((acc, c) => acc + Number(c.preco || 0), 0),
+        avaliacao: Number(m.avaliacao || 0),
+        totalAvaliacoes: Number(m.totalAvaliacoes || 0),
+        cancelamentos: canceladasPeloMotorista.length
+      };
+    });
+
+    const elProdutividade = document.getElementById('dash-desempenho-produtividade');
+    const elQualidade = document.getElementById('dash-desempenho-qualidade');
+    const elCancelamentos = document.getElementById('dash-desempenho-cancelamentos');
+
+    const porProdutividade = [...desempenho].sort((a, b) =>
+      b.finalizadas - a.finalizadas || b.ganhos - a.ganhos
+    );
+    const liderProdutividade = porProdutividade.find(m => m.finalizadas > 0);
+
+    if (elProdutividade) {
+      elProdutividade.innerHTML = liderProdutividade
+        ? `<b>${liderProdutividade.nome}</b> · ${liderProdutividade.finalizadas} corrida(s) finalizada(s) · ${formatMoeda(liderProdutividade.ganhos)}`
+        : 'Ainda não há corridas finalizadas para medir produtividade.';
+    }
+
+    const avaliados = desempenho.filter(m =>
+      m.totalAvaliacoes > 0 && Number.isFinite(m.avaliacao)
+    );
+    avaliados.sort((a, b) =>
+      b.avaliacao - a.avaliacao || b.totalAvaliacoes - a.totalAvaliacoes
+    );
+    const liderQualidade = avaliados[0];
+
+    if (elQualidade) {
+      elQualidade.innerHTML = liderQualidade
+        ? `<b>${liderQualidade.nome}</b> · ⭐ ${liderQualidade.avaliacao.toFixed(1)} · ${liderQualidade.totalAvaliacoes} avaliação(ões)`
+        : 'Ainda não há avaliações reais suficientes para medir qualidade.';
+    }
+
+    const totalCancelamentosMotorista = desempenho.reduce(
+      (acc, m) => acc + m.cancelamentos, 0
+    );
+    const porCancelamentos = [...desempenho].sort((a, b) =>
+      b.cancelamentos - a.cancelamentos
+    );
+    const maiorCancelamento = porCancelamentos.find(m => m.cancelamentos > 0);
+
+    if (elCancelamentos) {
+      elCancelamentos.innerHTML = maiorCancelamento
+        ? `${totalCancelamentosMotorista} cancelamento(s) pelo motorista · maior ocorrência: <b>${maiorCancelamento.nome}</b> (${maiorCancelamento.cancelamentos})`
+        : 'Nenhum cancelamento atribuído ao motorista nos dados carregados.';
     }
 
     const tbody = document.getElementById('dash-atividade-recente');
