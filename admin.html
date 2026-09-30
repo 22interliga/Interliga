@@ -290,7 +290,7 @@ textarea.inp { resize: vertical; }
             </div>
             <div class="stat-grid">
               <div class="stat-card" onclick="abrirCorridasComFiltro('aguardando')" style="cursor:pointer;" title="Ver corridas aguardando motorista"><div class="stat-icon">⏳</div><div class="stat-val" id="dash-aguardando">—</div><div class="stat-lbl">Aguardando motorista</div></div>
-              <div class="stat-card"><div class="stat-icon">🔵</div><div class="stat-val" id="dash-aceitas">—</div><div class="stat-lbl">Corridas aceitas</div></div>
+              <div class="stat-card" onclick="abrirCorridasComFiltro('aceita')" style="cursor:pointer;" title="Ver corridas aceitas"><div class="stat-icon">🔵</div><div class="stat-val" id="dash-aceitas">—</div><div class="stat-lbl">Corridas aceitas</div></div>
               <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-val" id="dash-canceladas-hoje">—</div><div class="stat-lbl">Canceladas hoje</div></div>
               <div class="stat-card" onclick="abrirMotoristasComFiltro('offline')" style="cursor:pointer;" title="Ver motoristas offline"><div class="stat-icon">⚫</div><div class="stat-val" id="dash-motoristas-offline">—</div><div class="stat-lbl">Motoristas offline</div></div>
             </div>
@@ -2984,6 +2984,7 @@ async function carregarCorridas(filtro = 'todas'){
 
     let filtrados = corridas;
     if (filtro === 'aguardando') filtrados = corridas.filter(c => c.status === 'aguardando');
+    if (filtro === 'aceita') filtrados = corridas.filter(c => c.status === 'aceita');
     if (filtro === 'andamento') filtrados = corridas.filter(c => c.status === 'aceita' || c.status === 'aguardando');
     if (filtro === 'finalizada') filtrados = corridas.filter(c => c.status === 'finalizada');
     if (filtro === 'cancelada') filtrados = corridas.filter(c => c.status === 'cancelada' || c.status === 'recusada');
