@@ -286,13 +286,13 @@ textarea.inp { resize: vertical; }
               <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-val" id="dash-faturamento-hoje">—</div><div class="stat-lbl">Faturamento hoje</div></div>
               <div class="stat-card"><div class="stat-icon">🚕</div><div class="stat-val" id="dash-corridas-hoje">—</div><div class="stat-lbl">Corridas hoje</div></div>
               <div class="stat-card"><div class="stat-icon">🛒</div><div class="stat-val">—</div><div class="stat-lbl">Pedidos Interifood</div><div class="stat-chg" style="color:var(--t2);font-size:11px;">Ainda não conectado</div></div>
-              <div class="stat-card"><div class="stat-icon">🚗</div><div class="stat-val" id="dash-motoristas-online">—</div><div class="stat-lbl">Motoristas online</div></div>
+              <div class="stat-card" onclick="abrirMotoristasComFiltro('online')" style="cursor:pointer;" title="Ver motoristas online"><div class="stat-icon">🚗</div><div class="stat-val" id="dash-motoristas-online">—</div><div class="stat-lbl">Motoristas online</div></div>
             </div>
             <div class="stat-grid">
               <div class="stat-card" onclick="abrirCorridasComFiltro('aguardando')" style="cursor:pointer;" title="Ver corridas aguardando motorista"><div class="stat-icon">⏳</div><div class="stat-val" id="dash-aguardando">—</div><div class="stat-lbl">Aguardando motorista</div></div>
               <div class="stat-card"><div class="stat-icon">🔵</div><div class="stat-val" id="dash-aceitas">—</div><div class="stat-lbl">Corridas aceitas</div></div>
               <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-val" id="dash-canceladas-hoje">—</div><div class="stat-lbl">Canceladas hoje</div></div>
-              <div class="stat-card"><div class="stat-icon">⚫</div><div class="stat-val" id="dash-motoristas-offline">—</div><div class="stat-lbl">Motoristas offline</div></div>
+              <div class="stat-card" onclick="abrirMotoristasComFiltro('offline')" style="cursor:pointer;" title="Ver motoristas offline"><div class="stat-icon">⚫</div><div class="stat-val" id="dash-motoristas-offline">—</div><div class="stat-lbl">Motoristas offline</div></div>
             </div>
 
             <!-- CENTRAL DE ALERTAS OPERACIONAIS -->
@@ -2816,6 +2816,16 @@ async function carregarDashboard(){
     console.error('[admin] erro ao carregar dashboard:', e);
     showToast('⚠️ Erro ao carregar dados do dashboard');
   }
+}
+
+function abrirMotoristasComFiltro(filtro){
+  showSection('motoristas');
+
+  document.querySelectorAll('[data-mot-filtro]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.motFiltro === filtro);
+  });
+
+  carregarMotoristas(filtro);
 }
 
 async function carregarMotoristas(filtro = 'todos'){
