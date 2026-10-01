@@ -1153,6 +1153,7 @@ document.getElementById('category-list')?.addEventListener('click', (e) => {
 document.getElementById('btn-confirmar-corrida')?.addEventListener('click', async () => {
   const inputOrigem = document.getElementById('input-origem');
   const inputDestino = document.getElementById('input-destino');
+  const inputReferencia = document.getElementById('input-referencia');
 
   if (!inputOrigem.value.trim()) { showToast('⚠️ Informe o endereço de embarque'); inputOrigem.focus(); return; }
   if (!inputDestino.value.trim()) { showToast('⚠️ Informe o destino'); inputDestino.focus(); return; }
@@ -1353,6 +1354,12 @@ async function criarCorrida(origem, destino, preco, categoria, precoOriginal) {
             motoristaAlvoAtual: fila[0],
             ofertaExpiraEm: Date.now() + 15000,
           });
+        } else {
+          // Não existe motorista disponível nesta cidade/categoria.
+          // Encerra a busca imediatamente para não deixar o passageiro
+          // preso indefinidamente em "Buscando motorista...".
+          await encerrarBuscaSemMotorista(docRef.id);
+          return;
         }
       } catch (e) {
         console.warn('[passageiro] erro ao montar fila de prioridade, seguindo em modo aberto:', e);
@@ -1380,18 +1387,36 @@ async function montarFilaPrioridade(origem, cidade, categoria) {
     const snap = await fb.getDocs(fb.collection(db, 'motoristas_disponiveis'));
     const agora = Date.now();
     const candidatos = [];
+    let diagTotal = 0;
+    let diagExpirada = 0;
+    let diagSemCoordenada = 0;
+    let diagOutraCidade = 0;
+    let diagCategoria = 0;
     snap.forEach(docSnap => {
       const d = docSnap.data();
+      diagTotal++;
       const atualizadoMs = d.atualizadoEm?.toMillis ? d.atualizadoEm.toMillis() : null;
       // Ignora motorista com localização desatualizada há mais de 2 min (provavelmente fechou o app)
-      if (atualizadoMs && (agora - atualizadoMs) > 2 * 60 * 1000) return;
-      if (typeof d.lat !== 'number' || typeof d.lon !== 'number') return;
+      if (atualizadoMs && (agora - atualizadoMs) > 2 * 60 * 1000) {
+        diagExpirada++;
+        return;
+      }
+      if (typeof d.lat !== 'number' || typeof d.lon !== 'number') {
+        diagSemCoordenada++;
+        return;
+      }
       // Motorista é fixo na cidade dele — não entra na fila de corrida de outra cidade
-      if (cidade && d.cidade && d.cidade !== cidade) return;
+      if (cidade && d.cidade && d.cidade !== cidade) {
+        diagOutraCidade++;
+        return;
+      }
       // Só entra na fila se o veículo dele for da categoria pedida (X / Plus / Van)
       // Só entra na fila se o veículo dele atender a categoria pedida (suporta motorista com mais de uma categoria)
       const categoriasMotorista = Array.isArray(d.categorias) ? d.categorias : (d.categoria ? [d.categoria] : null);
-      if (categoria && categoriasMotorista && !categoriasMotorista.includes(categoria)) return;
+      if (categoria && categoriasMotorista && !categoriasMotorista.includes(categoria)) {
+        diagCategoria++;
+        return;
+      }
       const distanciaKm = (origem?.lat && origem?.lon)
         ? haversineKm(origem.lat, origem.lon, d.lat, d.lon)
         : 999;
@@ -1401,6 +1426,17 @@ async function montarFilaPrioridade(origem, cidade, categoria) {
     candidatos.sort((a, b) => {
       if (Math.abs(a.distanciaKm - b.distanciaKm) > 0.3) return a.distanciaKm - b.distanciaKm;
       return b.avaliacao - a.avaliacao;
+    });
+    console.log('[passageiro][DIAG-FILA]', {
+      cidade,
+      categoria,
+      total: diagTotal,
+      expirada: diagExpirada,
+      semCoordenada: diagSemCoordenada,
+      outraCidade: diagOutraCidade,
+      categoriaIncompativel: diagCategoria,
+      candidatos: candidatos.length,
+      ids: candidatos.map(c => c.id),
     });
     return candidatos.map(c => c.id);
   } catch (e) {
@@ -2496,6 +2532,44 @@ document.querySelectorAll('.cancel-reason').forEach(btn => {
     confirmarCancelamento();
   });
 });
+
+// ─────────────────────────────────────
+// NENHUM MOTORISTA DISPONÍVEL NA CATEGORIA
+// ─────────────────────────────────────
+async function encerrarBuscaSemMotorista(corridaId) {
+  if (state.corridaListenerUnsub) {
+    state.corridaListenerUnsub();
+    state.corridaListenerUnsub = null;
+  }
+
+  pararFilaWatchdog();
+  pararMonitorNativo();
+
+  if (firebaseReady && db && corridaId && !String(corridaId).startsWith('local-')) {
+    try {
+      await fb.updateDoc(fb.doc(db, 'corridas', corridaId), {
+        status: 'sem_motorista',
+        encerradaEm: fb.serverTimestamp(),
+        motivoEncerramento: 'nenhum_motorista_disponivel_na_categoria',
+      });
+    } catch (e) {
+      console.warn('[passageiro] erro ao encerrar busca sem motorista:', e);
+    }
+  }
+
+  localStorage.removeItem('interliga_corrida_ativa');
+  atualizarStatusHistoricoLocal('sem_motorista');
+
+  state.corridaId = null;
+
+  document.getElementById('tracking-title').textContent = 'Nenhum motorista disponível';
+  document.getElementById('tracking-sub').textContent =
+    'Não temos motorista disponível nessa categoria no momento.';
+
+  showToast('🚗 Nenhum motorista disponível nessa categoria. Tente outra categoria ou tente novamente mais tarde.');
+
+  setTimeout(() => go('screen-home'), 1800);
+}
 
 // ─────────────────────────────────────
 // CANCELAR DURANTE A BUSCA (antes de motorista aceitar — sem multa, sem motivo)

@@ -485,11 +485,34 @@ async function atualizarStatsHome() {
 // Só roda enquanto o motorista está Online E sem corrida ativa.
 // ─────────────────────────────────────
 let intervalDisponibilidade = null;
+let disponibilidadeAtiva = false;
 
 function publicarDisponibilidade() {
-  if (!firebaseReady || !db || !navigator.geolocation) return;
+  console.log('[DIAG-DISP] chamada', {
+    disponibilidadeAtiva,
+    online: state.online,
+    firebaseReady,
+    temDb: !!db,
+    temGeo: !!navigator.geolocation,
+    motoristaId: meuMotoristaId
+  });
+
+  if (!disponibilidadeAtiva || !state.online) {
+    console.log('[DIAG-DISP] bloqueada: motorista offline/disponibilidade inativa');
+    return;
+  }
+
+  if (!firebaseReady || !db || !navigator.geolocation) {
+    console.log('[DIAG-DISP] bloqueada: Firebase/db/geolocation ainda não disponível');
+    return;
+  }
+
   navigator.geolocation.getCurrentPosition(
     (pos) => {
+      // O motorista pode ter ficado offline enquanto a localização era obtida.
+      // Nesse caso, nunca recria o registro de disponibilidade.
+      if (!disponibilidadeAtiva || !state.online) return;
+
       fb.setDoc(fb.doc(db, 'motoristas_disponiveis', meuMotoristaId), {
         nome: state.motorista.nome,
         avaliacao: state.motorista.avaliacao,
@@ -507,14 +530,17 @@ function publicarDisponibilidade() {
 }
 
 function iniciarDisponibilidade() {
+  disponibilidadeAtiva = true;
   publicarDisponibilidade();
   clearInterval(intervalDisponibilidade);
-  intervalDisponibilidade = setInterval(publicarDisponibilidade, 45000); // atualiza a cada 45s (antes era 20s — reduz consumo de escritas no Firebase)
+  intervalDisponibilidade = setInterval(publicarDisponibilidade, 45000); // atualiza a cada 45s
 }
 
 function pararDisponibilidade() {
+  disponibilidadeAtiva = false;
   clearInterval(intervalDisponibilidade);
   intervalDisponibilidade = null;
+
   if (firebaseReady && db) {
     fb.deleteDoc(fb.doc(db, 'motoristas_disponiveis', meuMotoristaId)).catch(() => {});
   }
