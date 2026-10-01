@@ -2105,70 +2105,96 @@ async function carregarRelatorios() {
   if (conteudo) conteudo.style.display = 'none';
 
   try {
-    const [snapCorridas, snapPedidos] = await Promise.all([
-      fbAdmin.getDocs(fbAdmin.query(
-        fbAdmin.collection(dbAdmin, 'corridas'),
-        fbAdmin.where('status', '==', 'finalizada'),
-        fbAdmin.where('criadoEm', '>=', range.inicio.toISOString()),
-        fbAdmin.where('criadoEm', '<=', range.fim.toISOString()),
-      )),
-      fbAdmin.getDocs(fbAdmin.query(
-        fbAdmin.collection(dbAdmin, 'pedidos_food'),
-        fbAdmin.where('status', '==', 'entregue'),
-        fbAdmin.where('criadoEm', '>=', fbAdmin.Timestamp?.fromDate?.(range.inicio) || range.inicio),
-        fbAdmin.where('criadoEm', '<=', fbAdmin.Timestamp?.fromDate?.(range.fim) || range.fim),
-      )),
-    ]);
+    // Relatório de Mobilidade:
+    // reaproveita as corridas já carregadas no Dashboard e não consulta Interfood.
+    let corridas = _todasCorridasCache;
 
-    let totalCorridas = 0, faturamento = 0, totalPedidos = 0, faturamentoPedidos = 0;
+    if (!corridas.length) {
+      corridas = await buscarTodasCorridas();
+      _todasCorridasCache = corridas;
+    }
+
+    const inicioMs = range.inicio.getTime();
+    const fimMs = range.fim.getTime();
+
+    const corridasPeriodo = corridas.filter(c => {
+      if (c.status !== 'finalizada') return false;
+
+      const ms = c.criadoEm?.toMillis
+        ? c.criadoEm.toMillis()
+        : (c.criadoEm ? new Date(c.criadoEm).getTime() : null);
+
+      return ms && ms >= inicioMs && ms <= fimMs;
+    });
+
+    let totalCorridas = 0, faturamento = 0;
     const rankMotoristas = {}, rankPassageiros = {};
 
-    snapCorridas.forEach(d => {
-      const c = d.data();
+    corridasPeriodo.forEach(c => {
       totalCorridas++;
       const preco = Number(c.preco || 0);
       faturamento += preco;
+
       if (c.motoristaId) {
-        if (!rankMotoristas[c.motoristaId]) rankMotoristas[c.motoristaId] = { nome: c.motoristaNome || '—', corridas: 0, ganhos: 0 };
+        if (!rankMotoristas[c.motoristaId]) {
+          rankMotoristas[c.motoristaId] = {
+            nome: c.motoristaNome || '—',
+            corridas: 0,
+            ganhos: 0
+          };
+        }
         rankMotoristas[c.motoristaId].corridas++;
         rankMotoristas[c.motoristaId].ganhos += preco;
       }
+
       if (c.passageiroId) {
-        if (!rankPassageiros[c.passageiroId]) rankPassageiros[c.passageiroId] = { nome: c.passageiroNome || '—', corridas: 0, gasto: 0 };
+        if (!rankPassageiros[c.passageiroId]) {
+          rankPassageiros[c.passageiroId] = {
+            nome: c.passageiroNome || '—',
+            corridas: 0,
+            gasto: 0
+          };
+        }
         rankPassageiros[c.passageiroId].corridas++;
         rankPassageiros[c.passageiroId].gasto += preco;
       }
     });
 
-    snapPedidos.forEach(d => {
-      totalPedidos++;
-      faturamentoPedidos += Number(d.data().total || 0);
-    });
-
-    const faturamentoTotal = faturamento + faturamentoPedidos;
-    const comissaoMedia = 0.10; // 10% padrão
-    const comissao = faturamento * comissaoMedia;
-
     document.getElementById('rel-total-corridas').textContent = totalCorridas;
-    document.getElementById('rel-total-pedidos').textContent = totalPedidos;
-    document.getElementById('rel-faturamento').textContent = formatMoeda(faturamentoTotal);
-    document.getElementById('rel-comissao').textContent = formatMoeda(comissao);
 
-    // Top motoristas
-    const topMot = Object.values(rankMotoristas).sort((a,b) => b.corridas - a.corridas).slice(0, 5);
+    // Interfood permanece separado deste relatório de Mobilidade.
+    document.getElementById('rel-total-pedidos').textContent = '—';
+
+    document.getElementById('rel-faturamento').textContent = formatMoeda(faturamento);
+
+    const comissaoMedia = 0.10; // mantém o comportamento já existente
+    document.getElementById('rel-comissao').textContent =
+      formatMoeda(faturamento * comissaoMedia);
+
+    const topMot = Object.values(rankMotoristas)
+      .sort((a,b) => b.corridas - a.corridas)
+      .slice(0, 5);
+
     const medalhas = ['🥇','🥈','🥉','4°','5°'];
+
     document.getElementById('rel-top-motoristas').innerHTML = topMot.length
-      ? topMot.map((m, i) => `<tr><td>${medalhas[i]||''}</td><td>${m.nome}</td><td>${m.corridas}</td><td>${formatMoeda(m.ganhos)}</td></tr>`).join('')
+      ? topMot.map((m, i) =>
+          `<tr><td>${medalhas[i]||''}</td><td>${m.nome}</td><td>${m.corridas}</td><td>${formatMoeda(m.ganhos)}</td></tr>`
+        ).join('')
       : '<tr><td colspan="4" style="text-align:center;color:var(--t2);padding:14px;">Nenhuma corrida no período</td></tr>';
 
-    // Top passageiros
-    const topPax = Object.values(rankPassageiros).sort((a,b) => b.corridas - a.corridas).slice(0, 5);
+    const topPax = Object.values(rankPassageiros)
+      .sort((a,b) => b.corridas - a.corridas)
+      .slice(0, 5);
+
     document.getElementById('rel-top-passageiros').innerHTML = topPax.length
-      ? topPax.map((p, i) => `<tr><td>${medalhas[i]||''}</td><td>${p.nome}</td><td>${p.corridas}</td><td>${formatMoeda(p.gasto)}</td></tr>`).join('')
+      ? topPax.map((p, i) =>
+          `<tr><td>${medalhas[i]||''}</td><td>${p.nome}</td><td>${p.corridas}</td><td>${formatMoeda(p.gasto)}</td></tr>`
+        ).join('')
       : '<tr><td colspan="4" style="text-align:center;color:var(--t2);padding:14px;">Nenhuma corrida no período</td></tr>';
 
   } catch (e) {
-    console.error('[admin] erro ao carregar relatórios:', e);
+    console.error('[admin] erro ao carregar relatórios de mobilidade:', e);
     showToast('⚠️ Erro ao carregar relatórios');
   } finally {
     if (loading) loading.style.display = 'none';
