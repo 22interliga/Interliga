@@ -1277,6 +1277,7 @@ async function aceitarCorrida() {
 // ─────────────────────────────────────
 let mapOngoing = null;
 let chegouAoCliente = false;
+let viagemIniciada = false;
 
 function onEnterOngoing() {
   const corrida = state.corridaAtual;
@@ -1319,6 +1320,7 @@ function onEnterOngoing() {
   }
 
   chegouAoCliente = false;
+  viagemIniciada = false;
   sequenciaRotaMotorista = [];
   indiceRotaAtualMotorista = 0;
 
@@ -1607,23 +1609,55 @@ document.getElementById('btn-cheguei')?.addEventListener('click', () => {
     showToast('🔔 Parada registrada');
     enviarMsgChatMotorista('🚗 Motorista chegou na parada! Aguardando para seguir viagem.', true);
   } else {
-    // Chegou no destino final — libera finalizar corrida
-    chegouAoCliente = true;
-    if (firebaseReady && db && state.corridaAtualId && !String(state.corridaAtualId).startsWith('local-')) {
-      fb.updateDoc(fb.doc(db, 'corridas', state.corridaAtualId), {
-        motoristaChegou: true,
-        motoristaChegouEm: fb.serverTimestamp(),
-      }).catch((e) => console.error('[motorista] erro ao registrar chegada:', e));
+    if (!viagemIniciada) {
+      // Primeira chegada: motorista chegou ao passageiro/origem.
+      // Ainda não é o destino final da corrida.
+      chegouAoCliente = true;
+
+      if (firebaseReady && db && state.corridaAtualId && !String(state.corridaAtualId).startsWith('local-')) {
+        fb.updateDoc(fb.doc(db, 'corridas', state.corridaAtualId), {
+          motoristaChegou: true,
+          motoristaChegouEm: fb.serverTimestamp(),
+        }).catch((e) => console.error('[motorista] erro ao registrar chegada:', e));
+      }
+
+      document.getElementById('btn-cheguei').hidden = true;
+      document.getElementById('btn-seguir-viagem').hidden = false;
+      document.getElementById('btn-seguir-viagem').textContent = '▶ Iniciar viagem';
+      document.getElementById('ongoing-eta-badge').textContent = '🟢 Você chegou ao passageiro';
+      showToast('🔔 Passageiro avisado que você chegou');
+      enviarMsgChatMotorista('🚗 Motorista chegou ao seu local!', true);
+      return;
     }
+
+    // Viagem já iniciada e motorista chegou ao destino final.
     document.getElementById('btn-cheguei').hidden = true;
+    document.getElementById('btn-seguir-viagem').hidden = true;
     document.getElementById('btn-finalizar-corrida').hidden = false;
-    document.getElementById('ongoing-eta-badge').textContent = '🟢 Você chegou!';
-    showToast('🔔 Passageiro avisado que você chegou');
-    enviarMsgChatMotorista('🚗 Motorista chegou ao seu local!', true);
+    document.getElementById('ongoing-eta-badge').textContent = '🟢 Você chegou ao destino!';
+    showToast('📍 Você chegou ao destino');
   }
 });
 
 document.getElementById('btn-seguir-viagem')?.addEventListener('click', () => {
+  if (!viagemIniciada) {
+    viagemIniciada = true;
+
+    if (firebaseReady && db && state.corridaAtualId && !String(state.corridaAtualId).startsWith('local-')) {
+      fb.updateDoc(fb.doc(db, 'corridas', state.corridaAtualId), {
+        status: 'em_andamento',
+      }).catch((e) => console.error('[motorista] erro ao iniciar viagem:', e));
+    }
+
+    document.getElementById('btn-seguir-viagem').hidden = true;
+    document.getElementById('btn-cheguei').hidden = false;
+    document.getElementById('btn-cheguei').textContent = 'Avisar que cheguei';
+    document.getElementById('ongoing-eta-badge').textContent = '🚗 Em viagem';
+    showToast('▶ Viagem iniciada');
+    enviarMsgChatMotorista('🚗 Viagem iniciada! Indo para o destino.', true);
+    return;
+  }
+
   indiceRotaAtualMotorista++;
   renderRotaMotorista();
 
@@ -1640,6 +1674,7 @@ document.getElementById('btn-seguir-viagem')?.addEventListener('click', () => {
   showToast('▶ Seguindo para: ' + (sequenciaRotaMotorista[indiceRotaAtualMotorista + 1]?.texto || 'destino'));
   enviarMsgChatMotorista('🚗 Motorista seguiu viagem!', true);
 });
+
 
 document.getElementById('btn-finalizar-corrida')?.addEventListener('click', finalizarCorrida);
 

@@ -1562,6 +1562,15 @@ function ouvirAceiteCorrida(corridaId) {
       // Guarda o nome do motorista no histórico local assim que aceita (não precisa esperar finalizar)
       atualizarStatusHistoricoLocal('aceita', { motoristaNome: data.motoristaNome || 'Motorista', motoristaVeiculo: data.motoristaVeiculo, motoristaPlaca: data.motoristaPlaca });
     }
+
+    if (data.status === 'em_andamento') {
+      console.log('[passageiro] corrida em andamento — atualizando status visual.');
+
+      document.getElementById('tracking-title').textContent = 'Viagem em andamento';
+      document.getElementById('tracking-sub').textContent = 'A caminho do seu destino';
+      document.getElementById('driver-status').textContent = '🚗 Em viagem';
+    }
+
     if (data.status === 'finalizada') {
       console.log('[passageiro] corrida finalizada pelo motorista.');
       pararMonitorNativo();
