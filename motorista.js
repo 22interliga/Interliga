@@ -1343,6 +1343,14 @@ function onEnterOngoing() {
   if (btnFinalizar) btnFinalizar.hidden = true;
   if (btnSeguir) btnSeguir.hidden = true;
 
+  console.log('[FLUXO-TESTE] onEnterOngoing:',
+    'viagemIniciada=', viagemIniciada,
+    'cheguei=', chegouAoCliente,
+    'finalizar.hidden=', btnFinalizar?.hidden,
+    'cheguei.hidden=', btnCheguei?.hidden,
+    'seguir.hidden=', btnSeguir?.hidden
+  );
+
   try { initMapOngoing(corrida); } catch (e) { console.error('[motorista] erro ao iniciar mapa ongoing:', e); }
   try { iniciarChatMotorista(); } catch (e) { console.error('[motorista] erro ao iniciar chat:', e); }
   try { escutarCancelamentoCorrida(); } catch (e) { console.error('[motorista] erro ao escutar cancelamento:', e); }
