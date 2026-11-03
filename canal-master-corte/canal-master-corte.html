@@ -1,0 +1,56 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Interliga — Canal de corte autorizado</title>
+<style>body{font:16px system-ui;max-width:760px;margin:32px auto;padding:16px;color:#172033}label{display:block;margin:14px 0}input,button,textarea{font:inherit;padding:8px;max-width:100%}textarea{width:95%;height:120px}button{margin:6px}pre{white-space:pre-wrap}fieldset{margin:20px 0}</style>
+<h1>Canal Master de corte</h1><p>Operação restrita da janela V004. A abertura desta página não habilita serviços nem altera aceites.</p>
+<details><summary>Comprovar sessão e coorte sem compartilhar credenciais</summary><ol>
+<li>Entre abaixo com sua conta habitual. Clique em Validar sessão Master atual e depois Salvar recibo. O arquivo contém somente metadados; não envie senha ou tokens.</li>
+<li>Para Motorista e Passageiro, reúna as evidências atuais: release disponibilizado no Play com pacote/versão; certificado público de App Signing (não o certificado de upload); identificação da instalação atual e origem Play; Android e provedor/versão WebView, URL oficial e sessão atual do aplicativo. Reutilize os registros históricos já existentes como referência, sem tratá-los como sessão atual.</li>
+<li>Sem ADB, use os comprovantes oficiais do Play Console/artefato distribuído e as telas atuais do próprio aparelho. O executor permite anexar e organizar essas evidências manualmente. Se a assinatura da instalação não puder ser vinculada ao certificado do Play por evidência verificável, o recibo permanece pendente.</li>
+<li>Nenhuma evidência é criada pelo formulário. O contexto pelo Gateway só deve ser solicitado durante a prova temporária coordenada pelo executor. Pausa/reabertura pertencem à janela real.</li>
+</ol></details>
+<form id="login"><label>E-mail <input id="email" type="email" autocomplete="username" required></label><label>Senha <input id="senha" type="password" autocomplete="current-password" required></label><button>Entrar pelo Firebase</button></form>
+<p id="status" role="status">Aguardando sessão.</p><button id="sessao">Validar sessão Master atual</button>
+<label>Recibo atual da coorte <input id="coorte" type="file" accept="application/json"></label>
+<button id="conectar">Provar contexto pelo Gateway</button>
+<fieldset><legend>Comandos da janela — não são executados automaticamente</legend>
+<label>Fotografia operacional atual <input id="foto" type="file" accept="application/json"></label>
+<label>Comando existente (JSON: comandoId, motivo, revisaoEsperada, novosAceitesPermitidos)<textarea id="comando"></textarea></label>
+<label><input id="escoado" type="checkbox"> Escoamento real confirmado e Rules finais publicadas</label>
+<button id="pausar">Pausar novos aceites</button><button id="reabrir">Reabrir após condições</button></fieldset>
+<button id="baixar">Salvar recibo sanitizado desta sessão</button>
+<script type="module">
+import {firebaseConfig,FIREBASE_SDK} from '../firebase-config.js';
+import {getApps,getApp,initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import * as authMod from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import {getFirestore,doc,getDocFromServer} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import * as appCheckMod from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js';
+import {criarResolvedorWidgetCmd133} from './appcheck-integracao-cmd133.mjs';
+import {conectarSessaoMasterProdutiva} from './integrar-auth-gateway-master-v004.mjs';
+import './administracao-v004-cliente.js';
+const $=id=>document.getElementById(id),origem='https://interliga.app.br';
+if(location.origin!==origem||firebaseConfig.projectId!=='interliga-mobilidade'||FIREBASE_SDK!=='10.12.0')throw Error('ORIGEM_OU_SDK_INVALIDOS');
+const app=getApps().some(a=>a.name==='[DEFAULT]')?getApp():initializeApp(firebaseConfig);
+if(app.options.projectId!==firebaseConfig.projectId||app.options.appId!==firebaseConfig.appId)throw Error('APP_EXISTENTE_DIVERGENTE');
+const auth=authMod.getAuth(app),db=getFirestore(app);let canal,coorte,foto,ocupado=false,usuarioValidado;
+const recibo={versao:1,projeto:'interliga-mobilidade',origem,geradoEm:new Date().toISOString(),masterAutorizado:false,provaRealAprovada:false,chamadas:[],gate:[]};
+function avisar(t){$('status').textContent=t;}
+async function acao(fn){if(ocupado)return;ocupado=true;try{await fn();}catch(e){avisar(e.code||e.codigo||e.message||'Falha; consultar estado antes de reenviar.');}finally{ocupado=false;}}
+async function validarSessao(){const u=auth.currentUser;if(!u||u.isAnonymous)throw Error('SESSAO_REAL_AUSENTE');
+ const s=await getDocFromServer(doc(db,'adminsMaster',u.uid));if(auth.currentUser!==u||!s.exists()||s.data().ativo!==true||s.data().perfil!=='adminMaster')throw Error('MASTER_ATIVO_NAO_COMPROVADO');
+ usuarioValidado=u;recibo.masterAutorizado=true;recibo.sessaoVerificadaEm=new Date().toISOString();avisar('Sessão Master validada no servidor; percurso Gateway ainda não provado.');}
+$('login').onsubmit=e=>{e.preventDefault();const email=$('email').value,senha=$('senha').value;$('senha').value='';acao(async()=>{await authMod.signInWithEmailAndPassword(auth,email,senha);await validarSessao();});};
+$('sessao').onclick=()=>acao(validarSessao);
+authMod.onAuthStateChanged(auth,()=>{usuarioValidado=null;canal=null;recibo.masterAutorizado=false;recibo.provaRealAprovada=false;});
+$('coorte').onchange=()=>acao(async()=>{coorte=JSON.parse(await $('coorte').files[0].text());avisar('Recibo carregado; a leitura do arquivo não atesta sua autenticidade.');});
+$('foto').onchange=()=>acao(async()=>{foto=JSON.parse(await $('foto').files[0].text());avisar('Fotografia carregada; será validada no envio.');});
+async function resolver(q){if(!globalThis.turnstile){await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';s.onload=ok;s.onerror=()=>no(Error('WIDGET_INDISPONIVEL'));document.head.append(s);});}
+ const el=document.createElement('div');document.body.append(el);try{return await criarResolvedorWidgetCmd133({turnstile:globalThis.turnstile,container:el})(q);}finally{el.remove();}}
+$('conectar').onclick=()=>acao(async()=>{await validarSessao();if(!canal)canal=conectarSessaoMasterProdutiva({app,auth,appCheckMod,api:globalThis.InterligaAdministracaoV004,resolverProva:resolver,reciboCoorte:coorte,habilitado:true,
+ fetchFn:async(url,op)=>{const r=await fetch(url,op);recibo.chamadas.push({url:new URL(url).origin+new URL(url).pathname,status:r.status,em:new Date().toISOString()});return r;}});
+ const r=await canal.contexto();if(r.papel!=='master'||auth.currentUser!==usuarioValidado)throw Error('MASTER_NAO_CONFIRMADO');recibo.provaRealAprovada=true;recibo.coorteId=coorte.id;recibo.provaEm=new Date().toISOString();avisar('Contexto Master confirmado pelo Gateway. Pausa/reabertura ainda não comprovadas.');});
+async function gate(abrir){if(!canal||!recibo.provaRealAprovada||auth.currentUser!==usuarioValidado)throw Error('PROVA_REAL_OBRIGATORIA');const c=JSON.parse($('comando').value);if(c.novosAceitesPermitidos!==abrir)throw Error('ACAO_DIVERGENTE');
+ const r=abrir?await canal.reabrir(c,foto,{escoamentoConfirmado:$('escoado').checked}):await canal.pausar(c,foto);
+ recibo.gate.push({comandoId:c.comandoId,revisaoEsperada:c.revisaoEsperada,abertura:abrir,resultado:r,em:new Date().toISOString()});avisar('Comando confirmado. Conferir fotografia/auditoria servidor; não reenviar automaticamente.');}
+$('pausar').onclick=()=>acao(()=>gate(false));$('reabrir').onclick=()=>acao(()=>gate(true));
+$('baixar').onclick=()=>{recibo.geradoEm=new Date().toISOString();const a=document.createElement('a');const u=URL.createObjectURL(new Blob([JSON.stringify(recibo,null,2)],{type:'application/json'}));a.href=u;a.download='recibo-master-v004.json';a.click();URL.revokeObjectURL(u);};
+</script></html>
+
