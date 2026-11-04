@@ -2,13 +2,15 @@
 <style>body{font:16px system-ui;max-width:760px;margin:32px auto;padding:16px;color:#172033}label{display:block;margin:14px 0}input,button,textarea{font:inherit;padding:8px;max-width:100%}textarea{width:95%;height:120px}button{margin:6px}pre{white-space:pre-wrap}fieldset{margin:20px 0}</style>
 <h1>Canal Master de corte</h1><p>Operação restrita da janela V004. A abertura desta página não habilita serviços nem altera aceites.</p>
 <details><summary>Comprovar sessão e coorte sem compartilhar credenciais</summary><ol>
-<li>Entre abaixo com sua conta habitual. Clique em Validar sessão Master atual e depois Salvar recibo. O arquivo contém somente metadados; não envie senha ou tokens.</li>
+<li>Entre abaixo com sua conta habitual. Clique em Validar sessão Master atual e depois Salvar recibo de SESSÃO Master. Esse arquivo prepara o executor e não comprova a prova de contexto. O arquivo contém somente metadados; não envie senha ou tokens.</li>
 <li>Para Motorista e Passageiro, reúna as evidências atuais: release disponibilizado no Play com pacote/versão; certificado público de App Signing (não o certificado de upload); identificação da instalação atual e origem Play; Android e provedor/versão WebView, URL oficial e sessão atual do aplicativo. Reutilize os registros históricos já existentes como referência, sem tratá-los como sessão atual.</li>
 <li>Sem ADB, use os comprovantes oficiais do Play Console/artefato distribuído e as telas atuais do próprio aparelho. O executor permite anexar e organizar essas evidências manualmente. Se a assinatura da instalação não puder ser vinculada ao certificado do Play por evidência verificável, o recibo permanece pendente.</li>
 <li>Nenhuma evidência é criada pelo formulário. O contexto pelo Gateway só deve ser solicitado durante a prova temporária coordenada pelo executor. Pausa/reabertura pertencem à janela real.</li>
 </ol></details>
 <form id="login"><label>E-mail <input id="email" type="email" autocomplete="username" required></label><label>Senha <input id="senha" type="password" autocomplete="current-password" required></label><button>Entrar pelo Firebase</button></form>
-<p id="status" role="status">Aguardando sessão.</p><button id="sessao">Validar sessão Master atual</button>
+<p id="status" role="status">Aguardando sessão.</p>
+<ol aria-label="Etapas da prova"><li id="passo-sessao"></li><li id="passo-coorte"></li><li id="passo-solicitacao"></li><li id="passo-gateway"></li><li id="passo-recibo"></li></ol>
+<details><summary>Diagnóstico local sanitizado</summary><p>Registra etapas e respostas HTTP. Não contém senha, tokens ou credenciais. Início no cliente não comprova chegada ao servidor.</p><pre id="diagnostico" aria-live="polite"></pre></details><button id="sessao">Validar sessão Master atual</button>
 <label>Recibo atual da coorte <input id="coorte" type="file" accept="application/json"></label>
 <button id="conectar">Provar contexto pelo Gateway</button>
 <fieldset><legend>Comandos da janela — não são executados automaticamente</legend>
@@ -16,7 +18,9 @@
 <label>Comando existente (JSON: comandoId, motivo, revisaoEsperada, novosAceitesPermitidos)<textarea id="comando"></textarea></label>
 <label><input id="escoado" type="checkbox"> Escoamento real confirmado e Rules finais publicadas</label>
 <button id="pausar">Pausar novos aceites</button><button id="reabrir">Reabrir após condições</button></fieldset>
-<button id="baixar">Salvar recibo sanitizado desta sessão</button>
+<p>Primeiro salve a sessão para preparar o executor. Depois, na janela autorizada, carregue a coorte atual, solicite o contexto e aguarde a aprovação HTTP 200 antes de salvar a prova.</p>
+<button id="baixar" disabled>Salvar recibo de SESSÃO Master</button>
+<button id="baixar-prova" disabled>Salvar recibo de PROVA aprovada</button>
 <script type="module">
 import {firebaseConfig,FIREBASE_SDK} from '../firebase-config.js';
 import {getApps,getApp,initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -30,27 +34,67 @@ const $=id=>document.getElementById(id),origem='https://interliga.app.br';
 if(location.origin!==origem||firebaseConfig.projectId!=='interliga-mobilidade'||FIREBASE_SDK!=='10.12.0')throw Error('ORIGEM_OU_SDK_INVALIDOS');
 const app=getApps().some(a=>a.name==='[DEFAULT]')?getApp():initializeApp(firebaseConfig);
 if(app.options.projectId!==firebaseConfig.projectId||app.options.appId!==firebaseConfig.appId)throw Error('APP_EXISTENTE_DIVERGENTE');
-const auth=authMod.getAuth(app),db=getFirestore(app);let canal,coorte,foto,ocupado=false,usuarioValidado;
-const recibo={versao:1,projeto:'interliga-mobilidade',origem,geradoEm:new Date().toISOString(),masterAutorizado:false,provaRealAprovada:false,chamadas:[],gate:[]};
+const auth=authMod.getAuth(app),db=getFirestore(app);let canal,coorte,foto,ocupado=false,usuarioValidado,fase='SESSAO',solicitada=false;
+const contextoURL='https://interliga-v004-dogfyhyu.uc.gateway.dev/mobilidade-v004/administracao/contexto';
+const recibo={versao:1,projeto:'interliga-mobilidade',origem,geradoEm:new Date().toISOString(),masterAutorizado:false,provaRealAprovada:false,chamadas:[],gate:[],diagnosticoLocal:{versao:1,eventos:[],ultimoErro:null}};
 function avisar(t){$('status').textContent=t;}
-async function acao(fn){if(ocupado)return;ocupado=true;try{await fn();}catch(e){avisar(e.code||e.codigo||e.message||'Falha; consultar estado antes de reenviar.');}finally{ocupado=false;}}
-async function validarSessao(){const u=auth.currentUser;if(!u||u.isAnonymous)throw Error('SESSAO_REAL_AUSENTE');
+function registrar(evento,dados={}){recibo.diagnosticoLocal.eventos.push({em:new Date().toISOString(),evento,...dados});recibo.diagnosticoLocal.eventos=recibo.diagnosticoLocal.eventos.slice(-40);$('diagnostico').textContent=recibo.diagnosticoLocal.eventos.map(e=>`${e.em} ${e.evento}${e.codigo?' '+e.codigo:''}${e.http?' HTTP '+e.http:''}`).join('\n');}
+function codigoSeguro(e){
+ if(typeof e?.code==='string'&&/^(?:auth|appCheck)\/[a-z-]{1,80}$/.test(e.code))return e.code;
+ const c=e?.codigo||e?.message;
+ if(typeof c==='string'&&/^(?:ORIGEM|APP|SESSAO|MASTER|PROVA|CONTEXTO|COORTE|ARQUIVO|RECIBO|ACAO|WIDGET|CLIENTE|APPCHECK|EMISSOR|DESAFIO|INGRESSO|CONFIGURACAO|IDENTIDADE|GATEWAY|AUTH)_[A-Z0-9_]{1,80}$/.test(c))return c;
+ return e?.message==='Failed to fetch'?'FALHA_FETCH_SEM_RESPOSTA_HTTP':e instanceof TypeError?'ERRO_TIPO_LOCAL':'FALHA_LOCAL_NAO_CLASSIFICADA';
+}
+function atual(t,min){const d=typeof t==='string'?Date.parse(t):NaN;return Number.isFinite(d)&&Date.now()-d<=min*60000&&d<=Date.now()+30000;}
+function coorteAtual(c){return c?.comprovada===true&&c.projeto==='interliga-mobilidade'&&typeof c.id==='string'&&c.id.length>0&&atual(c.validadoEm,15);}
+function motivoProva(){
+ if(!recibo.masterAutorizado||auth.currentUser!==usuarioValidado||!atual(recibo.sessaoVerificadaEm,5))return 'SESSAO_MASTER_ATUAL_OBRIGATORIA';
+ if(!coorteAtual(coorte))return 'COORTE_ATUAL_OBRIGATORIA';
+ if(!recibo.provaRealAprovada)return solicitada?'PROVA_SOLICITADA_MAS_NAO_APROVADA':'PROVA_CONTEXTO_NAO_SOLICITADA';
+ if(recibo.coorteId!==coorte.id)return 'COORTE_DA_PROVA_DIVERGENTE';
+ if(!atual(recibo.provaEm,5))return 'PROVA_NAO_ATUAL';
+ if(!recibo.chamadas.some(c=>c.url===contextoURL&&c.status===200))return 'CONTEXTO_GATEWAY_200_AUSENTE';
+ if(recibo.gate.length)return 'RECIBO_COM_GATE_NAO_E_PROVA_SOMENTE_CONTEXTO';return null;
+}
+function atualizar(){
+ $('passo-sessao').textContent=recibo.masterAutorizado?'Sessão Master validada no servidor.':'Sessão Master ainda não validada.';
+ $('passo-coorte').textContent=coorteAtual(coorte)?'Coorte atual carregada (metadados locais; validação do executor continua obrigatória).':'Coorte atual ausente ou vencida.';
+ $('passo-solicitacao').textContent=solicitada?'Prova de contexto solicitada pelo usuário.':'Prova de contexto ainda não solicitada.';
+ $('passo-gateway').textContent=recibo.provaRealAprovada?'Contexto Master aprovado pelo Gateway com HTTP 200.':'Contexto Master ainda não aprovado pelo Gateway.';
+ const motivo=motivoProva();$('passo-recibo').textContent=motivo?'Recibo de prova indisponível: '+motivo:'Recibo de PROVA pronto para salvar em Downloads.';
+ $('baixar').disabled=!recibo.masterAutorizado;$('baixar-prova').disabled=!!motivo;
+}
+function invalidarProva(){recibo.provaRealAprovada=false;delete recibo.coorteId;delete recibo.provaEm;}
+async function acao(fn){if(ocupado){avisar('Uma ação está em andamento; aguarde o resultado.');return;}ocupado=true;try{await fn();}catch(e){const codigo=codigoSeguro(e);recibo.diagnosticoLocal.ultimoErro={fase,codigo,em:new Date().toISOString()};registrar('ACAO_REJEITADA',{fase,codigo});avisar('Etapa '+fase+': '+codigo+'. A prova não foi aprovada. O recibo de sessão não substitui o recibo de prova.');}finally{ocupado=false;atualizar();}}
+async function validarSessao(){fase='SESSAO_MASTER';const u=auth.currentUser;if(!u||u.isAnonymous)throw Error('SESSAO_REAL_AUSENTE');
  const s=await getDocFromServer(doc(db,'adminsMaster',u.uid));if(auth.currentUser!==u||!s.exists()||s.data().ativo!==true||s.data().perfil!=='adminMaster')throw Error('MASTER_ATIVO_NAO_COMPROVADO');
- usuarioValidado=u;recibo.masterAutorizado=true;recibo.sessaoVerificadaEm=new Date().toISOString();avisar('Sessão Master validada no servidor; percurso Gateway ainda não provado.');}
-$('login').onsubmit=e=>{e.preventDefault();const email=$('email').value,senha=$('senha').value;$('senha').value='';acao(async()=>{await authMod.signInWithEmailAndPassword(auth,email,senha);await validarSessao();});};
+ usuarioValidado=u;recibo.masterAutorizado=true;recibo.sessaoVerificadaEm=new Date().toISOString();registrar('SESSAO_MASTER_VALIDADA');avisar('Sessão Master validada. Para preparar o executor, salve o recibo de SESSÃO. Para provar contexto, carregue a coorte atual e use o botão próprio durante a janela autorizada.');}
+$('login').onsubmit=e=>{e.preventDefault();const email=$('email').value,senha=$('senha').value;$('senha').value='';acao(async()=>{fase='FIREBASE_AUTH';await authMod.signInWithEmailAndPassword(auth,email,senha);await validarSessao();});};
 $('sessao').onclick=()=>acao(validarSessao);
-authMod.onAuthStateChanged(auth,()=>{usuarioValidado=null;canal=null;recibo.masterAutorizado=false;recibo.provaRealAprovada=false;});
-$('coorte').onchange=()=>acao(async()=>{coorte=JSON.parse(await $('coorte').files[0].text());avisar('Recibo carregado; a leitura do arquivo não atesta sua autenticidade.');});
-$('foto').onchange=()=>acao(async()=>{foto=JSON.parse(await $('foto').files[0].text());avisar('Fotografia carregada; será validada no envio.');});
-async function resolver(q){if(!globalThis.turnstile){await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';s.onload=ok;s.onerror=()=>no(Error('WIDGET_INDISPONIVEL'));document.head.append(s);});}
- const el=document.createElement('div');document.body.append(el);try{return await criarResolvedorWidgetCmd133({turnstile:globalThis.turnstile,container:el})(q);}finally{el.remove();}}
-$('conectar').onclick=()=>acao(async()=>{await validarSessao();if(!canal)canal=conectarSessaoMasterProdutiva({app,auth,appCheckMod,api:globalThis.InterligaAdministracaoV004,resolverProva:resolver,reciboCoorte:coorte,habilitado:true,
- fetchFn:async(url,op)=>{const r=await fetch(url,op);recibo.chamadas.push({url:new URL(url).origin+new URL(url).pathname,status:r.status,em:new Date().toISOString()});return r;}});
- const r=await canal.contexto();if(r.papel!=='master'||auth.currentUser!==usuarioValidado)throw Error('MASTER_NAO_CONFIRMADO');recibo.provaRealAprovada=true;recibo.coorteId=coorte.id;recibo.provaEm=new Date().toISOString();avisar('Contexto Master confirmado pelo Gateway. Pausa/reabertura ainda não comprovadas.');});
-async function gate(abrir){if(!canal||!recibo.provaRealAprovada||auth.currentUser!==usuarioValidado)throw Error('PROVA_REAL_OBRIGATORIA');const c=JSON.parse($('comando').value);if(c.novosAceitesPermitidos!==abrir)throw Error('ACAO_DIVERGENTE');
- const r=abrir?await canal.reabrir(c,foto,{escoamentoConfirmado:$('escoado').checked}):await canal.pausar(c,foto);
- recibo.gate.push({comandoId:c.comandoId,revisaoEsperada:c.revisaoEsperada,abertura:abrir,resultado:r,em:new Date().toISOString()});avisar('Comando confirmado. Conferir fotografia/auditoria servidor; não reenviar automaticamente.');}
+authMod.onAuthStateChanged(auth,()=>{usuarioValidado=null;canal=null;coorte=null;solicitada=false;recibo.masterAutorizado=false;delete recibo.sessaoVerificadaEm;invalidarProva();registrar('SESSAO_ALTERADA');atualizar();});
+$('coorte').onchange=()=>acao(async()=>{fase='CARREGAR_COORTE';const file=$('coorte').files[0];if(!file)throw Error('ARQUIVO_COORTE_AUSENTE');const nova=JSON.parse(await file.text());if(!coorteAtual(nova))throw Error('RECIBO_ATUAL_COORTE_OBRIGATORIO');if(canal&&coorte?.id!==nova.id)throw Error('COORTE_ALTERADA_RECARREGUE_PAGINA');coorte=nova;invalidarProva();registrar('COORTE_ATUAL_CARREGADA');avisar('Coorte atual carregada. Durante a janela indicada pelo executor, clique Provar contexto pelo Gateway. A leitura do arquivo não comprova autenticidade ou sucesso da prova.');});
+$('foto').onchange=()=>acao(async()=>{fase='FOTOGRAFIA';foto=JSON.parse(await $('foto').files[0].text());avisar('Fotografia carregada; será validada no envio.');});
+async function resolver(q){fase='WIDGET_APPCHECK';if(!globalThis.turnstile){await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';s.onload=ok;s.onerror=()=>no(Error('WIDGET_INDISPONIVEL'));document.head.append(s);});}const el=document.createElement('div');document.body.append(el);try{return await criarResolvedorWidgetCmd133({turnstile:globalThis.turnstile,container:el})(q);}finally{el.remove();}}
+async function fetchDiagnostico(url,op){
+ const u=new URL(url);const endpoint=u.origin+u.pathname;
+ fase=u.pathname==='/app-check/desafio'?'APPCHECK_DESAFIO':u.pathname==='/app-check/troca'?'APPCHECK_TROCA':'GATEWAY_CONTEXTO';
+ registrar('REQUISICAO_INICIADA',{fase});
+ try{const r=await fetch(url,op);recibo.chamadas.push({url:endpoint,status:r.status,em:new Date().toISOString()});registrar('RESPOSTA_HTTP',{fase,http:r.status});return r;}catch(e){registrar('REQUISICAO_SEM_RESPOSTA_HTTP',{fase,codigo:codigoSeguro(e)});throw e;}
+}
+$('conectar').onclick=()=>acao(async()=>{
+ invalidarProva();solicitada=true;fase='SOLICITAR_CONTEXTO';registrar('PROVA_CONTEXTO_SOLICITADA');avisar('Prova de contexto solicitada. Aguarde a resposta; isso ainda não comprova chegada ao Gateway.');atualizar();
+ await validarSessao();fase='PRECONDICAO_COORTE';if(!coorteAtual(coorte))throw Error('RECIBO_ATUAL_COORTE_OBRIGATORIO');const coorteDaTentativa=coorte;
+ const inicioChamadas=recibo.chamadas.length;fase='PREPARAR_APPCHECK_GATEWAY';if(!canal)canal=conectarSessaoMasterProdutiva({app,auth,appCheckMod,api:globalThis.InterligaAdministracaoV004,resolverProva:resolver,reciboCoorte:coorte,habilitado:true,fetchFn:fetchDiagnostico});
+ const r=await canal.contexto();fase='VALIDAR_RESPOSTA_CONTEXTO';if(r.papel!=='master'||auth.currentUser!==usuarioValidado||coorte!==coorteDaTentativa)throw Error('MASTER_OU_COORTE_NAO_CONFIRMADOS');
+ if(!recibo.chamadas.slice(inicioChamadas).some(c=>c.url===contextoURL&&c.status===200))throw Error('CONTEXTO_GATEWAY_200_AUSENTE');
+ recibo.provaRealAprovada=true;recibo.coorteId=coorte.id;recibo.provaEm=new Date().toISOString();registrar('CONTEXTO_MASTER_HTTP_200_APROVADO');avisar('Contexto Master aprovado pelo Gateway com HTTP 200. Recibo de PROVA pronto: clique Salvar recibo de PROVA aprovada. Pausa/reabertura não foram comprovadas.');
+});
+async function gate(abrir){fase='COMANDO_GATE';if(!canal||!recibo.provaRealAprovada||auth.currentUser!==usuarioValidado)throw Error('PROVA_REAL_OBRIGATORIA');const c=JSON.parse($('comando').value);if(c.novosAceitesPermitidos!==abrir)throw Error('ACAO_DIVERGENTE');const r=abrir?await canal.reabrir(c,foto,{escoamentoConfirmado:$('escoado').checked}):await canal.pausar(c,foto);recibo.gate.push({comandoId:c.comandoId,revisaoEsperada:c.revisaoEsperada,abertura:abrir,resultado:r,em:new Date().toISOString()});avisar('Comando confirmado. Conferir fotografia/auditoria servidor; não reenviar automaticamente.');}
 $('pausar').onclick=()=>acao(()=>gate(false));$('reabrir').onclick=()=>acao(()=>gate(true));
-$('baixar').onclick=()=>{recibo.geradoEm=new Date().toISOString();const a=document.createElement('a');const u=URL.createObjectURL(new Blob([JSON.stringify(recibo,null,2)],{type:'application/json'}));a.href=u;a.download='recibo-master-v004.json';a.click();URL.revokeObjectURL(u);};
+function baixar(obj){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}));a.href=u;a.download='recibo-master-v004.json';a.click();URL.revokeObjectURL(u);}
+$('baixar').onclick=()=>acao(async()=>{fase='SALVAR_SESSAO';if(!recibo.masterAutorizado||auth.currentUser!==usuarioValidado||!atual(recibo.sessaoVerificadaEm,5))throw Error('SESSAO_MASTER_ATUAL_OBRIGATORIA');registrar('RECIBO_SESSAO_SALVO');baixar({...recibo,tipo:'sessao-master',geradoEm:new Date().toISOString(),provaRealAprovada:false,coorteId:undefined,provaEm:undefined,chamadas:[],gate:[]});avisar('Recibo de SESSÃO salvo para preparar o executor. Esse arquivo não é uma prova aprovada.');});
+$('baixar-prova').onclick=()=>acao(async()=>{fase='SALVAR_PROVA';const motivo=motivoProva();if(motivo)throw Error(motivo);registrar('RECIBO_PROVA_PRONTO_PARA_DOWNLOAD');baixar({...recibo,tipo:'prova-contexto',geradoEm:new Date().toISOString()});avisar('Download do recibo de PROVA solicitado. Deixe em Downloads; o executor validará conteúdo, coorte, horários e Gateway.');});
+atualizar();
+
 </script></html>
 
