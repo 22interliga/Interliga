@@ -11,14 +11,17 @@
 <p id="status" role="status">Aguardando sessão.</p>
 <ol aria-label="Etapas da prova"><li id="passo-sessao"></li><li id="passo-coorte"></li><li id="passo-solicitacao"></li><li id="passo-gateway"></li><li id="passo-recibo"></li></ol>
 <details><summary>Diagnóstico local sanitizado</summary><p>Registra etapas e respostas HTTP. Não contém senha, tokens ou credenciais. Início no cliente não comprova chegada ao servidor.</p><pre id="diagnostico" aria-live="polite"></pre></details><button id="sessao">Validar sessão Master atual</button>
-<label>Recibo atual da coorte <input id="coorte" type="file" accept="application/json"></label>
+<label>Recibo atual da coorte para a prova <input id="coorte" type="file" accept="application/json" aria-describedby="ajuda-coorte"></label>
+<p id="ajuda-coorte">Selecione o <code>recibo-coorte-atual.json</code> pelo caminho exibido pelo executor desta execução. Aguarde a indicação “Coorte validada na página” antes de solicitar o contexto.</p>
 <p id="coorte-selecionada" role="status"></p>
 <button id="conectar">Provar contexto pelo Gateway</button>
+<details><summary>Controles de pausa e reabertura da janela de corte</summary>
 <fieldset><legend>Comandos da janela — não são executados automaticamente</legend>
+<p>A fotografia operacional é usada pelos comandos de pausa e reabertura. Para a prova de contexto, carregue o recibo no campo da coorte acima.</p>
 <label>Fotografia operacional atual <input id="foto" type="file" accept="application/json"></label>
 <label>Comando existente (JSON: comandoId, motivo, revisaoEsperada, novosAceitesPermitidos)<textarea id="comando"></textarea></label>
 <label><input id="escoado" type="checkbox"> Escoamento real confirmado e Rules finais publicadas</label>
-<button id="pausar">Pausar novos aceites</button><button id="reabrir">Reabrir após condições</button></fieldset>
+<button id="pausar">Pausar novos aceites</button><button id="reabrir">Reabrir após condições</button></fieldset></details>
 <p>Primeiro salve a sessão para preparar o executor. Depois, na janela autorizada, carregue a coorte atual, solicite o contexto e aguarde a aprovação HTTP 200 antes de salvar a prova.</p>
 <button id="baixar" disabled>Salvar recibo de SESSÃO Master</button>
 <button id="baixar-prova" disabled>Salvar recibo de PROVA aprovada</button>
