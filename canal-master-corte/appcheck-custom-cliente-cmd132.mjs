@@ -1,5 +1,5 @@
 // Optional callback for CustomProvider; no Firebase initialization or automatic execution.
-export function criarGetTokenCmd132({app,auth,config,resolverProva,fetchFn=globalThis.fetch,agora=Date.now}={}){
+export function criarGetTokenCmd132({app,auth,config,resolverProva,fetchFn=globalThis.fetch,agora=Date.now,monotono=()=>performance.now()}={}){
  if(config?.aprovado!==true||config.publicacaoConfirmada!==true||globalThis.location?.origin!=='https://interliga.app.br'||
  app?.options?.projectId!=='interliga-mobilidade'||app.options.appId!=='1:1071971171958:web:b04980bd1abd4dcc7c2957'||
  auth?.app!==app||typeof resolverProva!=='function'||typeof fetchFn!=='function')throw Error('CUSTOM_PROVIDER_NAO_CONFIGURADO');
@@ -16,14 +16,20 @@ export function criarGetTokenCmd132({app,auth,config,resolverProva,fetchFn=globa
    if(!r.ok)throw Error('EMISSOR_RECUSOU');const data=await r.json();
    if(auth.currentUser!==u)throw Error('SESSAO_ALTERADA');return data;
   };
+  const inicioDesafio=monotono();
   const d=await enviar('desafio',{});
   if(!/^[a-f0-9]{64}$/.test(d.nonce||'')||d.siteKey!==config.siteKey||d.action!=='interliga_appcheck'||
   !Number.isFinite(d.expireTimeMillis)||d.expireTimeMillis<=agora()||d.expireTimeMillis>agora()+300000)throw Error('DESAFIO_INVALIDO');
   const prova=await resolverProva({siteKey:d.siteKey,action:d.action,cData:d.nonce});
   if(typeof prova!=='string'||!prova.length||prova.length>2048||d.expireTimeMillis<=agora())throw Error('PROVA_INVALIDA');
   const r=await enviar('troca',{nonce:d.nonce,prova});
-  if(typeof r.token!=='string'||!r.token.length||!Number.isFinite(r.expireTimeMillis)||
-  r.expireTimeMillis<=agora()||r.expireTimeMillis>agora()+1800000)throw Error('TOKEN_INVALIDO');
-  return {token:r.token,expireTimeMillis:r.expireTimeMillis};
+  // O desafio informa o instante do emissor mais cinco minutos. O tempo
+  // monotônico desde o envio dá um limite superior conservador para esse relógio.
+  const agoraEmissorMaximo=d.expireTimeMillis-300000+Math.ceil(monotono()-inicioDesafio);
+  const restante=r.expireTimeMillis-agoraEmissorMaximo;
+  if(typeof r.token!=='string'||!/^[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+$/.test(r.token)||
+  !Number.isFinite(restante)||restante<=0||restante>1800000)throw Error('TOKEN_INVALIDO');
+  // CustomProvider usa a época local para o cache. Conservar a duração restante.
+  return {token:r.token,expireTimeMillis:agora()+restante};
  };
 }
