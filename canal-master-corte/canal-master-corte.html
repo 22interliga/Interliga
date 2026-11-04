@@ -41,10 +41,13 @@ const recibo={versao:1,projeto:'interliga-mobilidade',origem,geradoEm:new Date()
 function avisar(t){$('status').textContent=t;}
 function registrar(evento,dados={}){recibo.diagnosticoLocal.eventos.push({em:new Date().toISOString(),evento,...dados});recibo.diagnosticoLocal.eventos=recibo.diagnosticoLocal.eventos.slice(-40);$('diagnostico').textContent=recibo.diagnosticoLocal.eventos.map(e=>`${e.em} ${e.evento}${e.codigo?' '+e.codigo:''}${e.http?' HTTP '+e.http:''}`).join('\n');}
 function codigoSeguro(e){
+ if(e?.name==='TimeoutError')return 'REQUISICAO_TIMEOUT';
+ if(e?.name==='AbortError')return 'REQUISICAO_CANCELADA';
  if(typeof e?.code==='string'&&/^(?:auth|appCheck)\/[a-z-]{1,80}$/.test(e.code))return e.code;
  const c=e?.codigo||e?.message;
  if(typeof c==='string'&&/^(?:ORIGEM|APP|SESSAO|MASTER|PROVA|CONTEXTO|COORTE|ARQUIVO|RECIBO|ACAO|WIDGET|CLIENTE|APPCHECK|EMISSOR|DESAFIO|INGRESSO|CONFIGURACAO|IDENTIDADE|GATEWAY|AUTH)_[A-Z0-9_]{1,80}$/.test(c))return c;
- return e?.message==='Failed to fetch'?'FALHA_FETCH_SEM_RESPOSTA_HTTP':e instanceof TypeError?'ERRO_TIPO_LOCAL':'FALHA_LOCAL_NAO_CLASSIFICADA';
+ if(e?.name==='TypeError'&&['Failed to fetch','NetworkError when attempting to fetch resource.','Load failed'].includes(e.message))return 'FALHA_FETCH_SEM_RESPOSTA_HTTP';
+ return 'FALHA_LOCAL_NAO_CLASSIFICADA';
 }
 function atual(t,min){const d=typeof t==='string'?Date.parse(t):NaN;return Number.isFinite(d)&&Date.now()-d<=min*60000&&d<=Date.now()+30000;}
 function coorteAtual(c){return c?.comprovada===true&&c.projeto==='interliga-mobilidade'&&typeof c.id==='string'&&c.id.length>0&&atual(c.validadoEm,15);}
