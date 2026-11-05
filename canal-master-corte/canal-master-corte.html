@@ -12,7 +12,7 @@
 <ol aria-label="Etapas da prova"><li id="passo-sessao"></li><li id="passo-coorte"></li><li id="passo-solicitacao"></li><li id="passo-gateway"></li><li id="passo-recibo"></li></ol>
 <details><summary>Diagnóstico local sanitizado</summary><p>Registra etapas e respostas HTTP. Não contém senha, tokens ou credenciais. Início no cliente não comprova chegada ao servidor.</p><pre id="diagnostico" aria-live="polite"></pre></details><button id="sessao">Validar sessão Master atual</button>
 <label>Recibo atual da coorte para a prova <input id="coorte" type="file" accept="application/json" aria-describedby="ajuda-coorte"></label>
-<p id="ajuda-coorte">Selecione o <code>recibo-coorte-atual.json</code> pelo caminho exibido pelo executor desta execução. Aguarde a indicação “Coorte validada na página” antes de solicitar o contexto.</p>
+<p id="ajuda-coorte">Selecione o <code>recibo-coorte-atual.json</code> pelo caminho exibido pelo executor desta execução. Abra o link da execução exibido no terminal e confira o ID na indicação “Coorte validada na página” antes de solicitar o contexto.</p>
 <p id="coorte-selecionada" role="status"></p>
 <button id="conectar">Provar contexto pelo Gateway</button>
 <details><summary>Controles de pausa e reabertura da janela de corte</summary>
@@ -53,10 +53,11 @@ function codigoSeguro(e){
  return 'FALHA_LOCAL_NAO_CLASSIFICADA';
 }
 function atual(t,min){const d=typeof t==='string'?Date.parse(t):NaN;return Number.isFinite(d)&&Date.now()-d<=min*60000&&d<=Date.now()+30000;}
+const idCoorteEsperada=new URL(location.href).searchParams.get('coorte');
 function coorteAtual(c){return c?.comprovada===true&&c.projeto==='interliga-mobilidade'&&typeof c.id==='string'&&c.id.length>0&&atual(c.validadoEm,15);}
 function motivoProva(){
  if(!recibo.masterAutorizado||auth.currentUser!==usuarioValidado||!atual(recibo.sessaoVerificadaEm,5))return 'SESSAO_MASTER_ATUAL_OBRIGATORIA';
- if(!coorteAtual(coorte))return 'COORTE_ATUAL_OBRIGATORIA';
+ if(!coorteAtual(coorte)||coorte.id!==idCoorteEsperada)return 'COORTE_ATUAL_OBRIGATORIA';
  if(!recibo.provaRealAprovada)return solicitada?'PROVA_SOLICITADA_MAS_NAO_APROVADA':'PROVA_CONTEXTO_NAO_SOLICITADA';
  if(recibo.coorteId!==coorte.id)return 'COORTE_DA_PROVA_DIVERGENTE';
  if(!atual(recibo.provaEm,5))return 'PROVA_NAO_ATUAL';
@@ -68,7 +69,7 @@ function atualizar(){
  const campoCoorte=$('coorte');
  $('coorte-selecionada').textContent='Arquivo selecionado: '+(campoCoorte.files[0]?.name||'nenhum.');
  $('passo-coorte').textContent=coorteAtual(coorte)
-  ? 'Coorte validada na página: '+arquivoCoorteValidado+' · '+coorte.validadoEm+' (metadados locais; validação do executor continua obrigatória).'
+  ? 'Coorte validada na página: '+arquivoCoorteValidado+' · '+coorte.id+' · '+coorte.validadoEm+' (metadados locais; validação do executor continua obrigatória).'
   : 'Nenhuma coorte atual validada. Selecione o recibo da execução em andamento.';
  $('passo-solicitacao').textContent=solicitada?'Prova de contexto solicitada pelo usuário.':'Prova de contexto ainda não solicitada.';
  $('passo-gateway').textContent=recibo.provaRealAprovada?'Contexto Master aprovado pelo Gateway com HTTP 200.':'Contexto Master ainda não aprovado pelo Gateway.';
@@ -95,6 +96,7 @@ $('coorte').onchange=()=>{
    const nova=JSON.parse(await file.text());
    if(campo.files[0]!==file)throw Error('ARQUIVO_COORTE_SELECAO_ALTERADA');
    if(!coorteAtual(nova))throw Error('RECIBO_ATUAL_COORTE_OBRIGATORIO');
+   if(!/^coorte-[a-f0-9]{32}$/.test(idCoorteEsperada||'')||nova.id!==idCoorteEsperada)throw Error('COORTE_DIVERGENTE_USE_LINK_E_ARQUIVO_DO_TERMINAL');
    if(canal&&coorte?.id!==nova.id)throw Error('COORTE_ALTERADA_RECARREGUE_PAGINA');
    coorte=nova;arquivoCoorteValidado=file.name;invalidarProva();registrar('COORTE_ATUAL_CARREGADA');
    avisar('Coorte atual carregada. Durante a janela indicada pelo executor, clique Provar contexto pelo Gateway. A leitura do arquivo não comprova autenticidade ou sucesso da prova.');
@@ -140,7 +142,7 @@ function salvarGate(abrir){
 $('pausar').onclick=()=>acao(()=>gate(false));$('reabrir').onclick=()=>acao(()=>gate(true));
 function baixar(obj,nome='recibo-master-v004.json'){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}));a.href=u;a.download=nome;a.click();URL.revokeObjectURL(u);}
 $('baixar').onclick=()=>acao(async()=>{fase='SALVAR_SESSAO';if(!recibo.masterAutorizado||auth.currentUser!==usuarioValidado||!atual(recibo.sessaoVerificadaEm,5))throw Error('SESSAO_MASTER_ATUAL_OBRIGATORIA');registrar('RECIBO_SESSAO_SALVO');baixar({...recibo,tipo:'sessao-master',geradoEm:new Date().toISOString(),provaRealAprovada:false,coorteId:undefined,provaEm:undefined,chamadas:[],gate:[]});avisar('Recibo de SESSÃO salvo para preparar o executor. Esse arquivo não é uma prova aprovada.');});
-$('baixar-prova').onclick=()=>acao(async()=>{fase='SALVAR_PROVA';const motivo=motivoProva();if(motivo)throw Error(motivo);registrar('RECIBO_PROVA_PRONTO_PARA_DOWNLOAD');baixar({...recibo,tipo:'prova-contexto',geradoEm:new Date().toISOString(),gate:[]});avisar('Download do recibo de PROVA solicitado. Deixe em Downloads; o executor validará conteúdo, coorte, horários e Gateway.');});
+$('baixar-prova').onclick=()=>acao(async()=>{fase='SALVAR_PROVA';const motivo=motivoProva();if(motivo)throw Error(motivo);registrar('RECIBO_PROVA_PRONTO_PARA_DOWNLOAD');baixar({...recibo,tipo:'prova-contexto',geradoEm:new Date().toISOString(),gate:[]},'recibo-master-prova-'+coorte.id+'.json');avisar('Download do recibo de PROVA solicitado. Deixe em Downloads; o executor validará conteúdo, coorte, horários e Gateway.');});
 $('baixar-pausa').onclick=()=>acao(()=>salvarGate(false));
 $('baixar-reabertura').onclick=()=>acao(()=>salvarGate(true));
 atualizar();
