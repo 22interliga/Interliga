@@ -21,7 +21,7 @@
 <label>Fotografia operacional atual <input id="foto" type="file" accept="application/json"></label>
 <label>Comando existente (JSON: comandoId, motivo, revisaoEsperada, novosAceitesPermitidos)<textarea id="comando"></textarea></label>
 <label><input id="escoado" type="checkbox"> Escoamento real confirmado e Rules finais publicadas</label>
-<button id="pausar">Pausar novos aceites</button><button id="reabrir">Reabrir após condições</button></fieldset></details>
+<button id="pausar">Pausar novos aceites</button><button id="baixar-pausa" disabled>Salvar recibo de PAUSA confirmada</button><button id="reabrir">Reabrir após condições</button><button id="baixar-reabertura" disabled>Salvar recibo de REABERTURA confirmada</button></fieldset></details>
 <p>Primeiro salve a sessão para preparar o executor. Depois, na janela autorizada, carregue a coorte atual, solicite o contexto e aguarde a aprovação HTTP 200 antes de salvar a prova.</p>
 <button id="baixar" disabled>Salvar recibo de SESSÃO Master</button>
 <button id="baixar-prova" disabled>Salvar recibo de PROVA aprovada</button>
@@ -61,7 +61,7 @@ function motivoProva(){
  if(recibo.coorteId!==coorte.id)return 'COORTE_DA_PROVA_DIVERGENTE';
  if(!atual(recibo.provaEm,5))return 'PROVA_NAO_ATUAL';
  if(!recibo.chamadas.some(c=>c.url===contextoURL&&c.status===200))return 'CONTEXTO_GATEWAY_200_AUSENTE';
- if(recibo.gate.length)return 'RECIBO_COM_GATE_NAO_E_PROVA_SOMENTE_CONTEXTO';return null;
+ return null;
 }
 function atualizar(){
  $('passo-sessao').textContent=recibo.masterAutorizado?'Sessão Master validada no servidor.':'Sessão Master ainda não validada.';
@@ -74,6 +74,8 @@ function atualizar(){
  $('passo-gateway').textContent=recibo.provaRealAprovada?'Contexto Master aprovado pelo Gateway com HTTP 200.':'Contexto Master ainda não aprovado pelo Gateway.';
  const motivo=motivoProva();$('passo-recibo').textContent=motivo?'Recibo de prova indisponível: '+motivo:'Recibo de PROVA pronto para salvar em Downloads.';
  $('baixar').disabled=!recibo.masterAutorizado;$('baixar-prova').disabled=!!motivo;
+ $('baixar-pausa').disabled=!reciboGateAtual(false);
+ $('baixar-reabertura').disabled=!reciboGateAtual(true);
 }
 function invalidarProva(){recibo.provaRealAprovada=false;delete recibo.coorteId;delete recibo.provaEm;}
 async function acao(fn){if(ocupado){avisar('Uma ação está em andamento; aguarde o resultado.');return;}ocupado=true;$('coorte').disabled=true;try{await fn();}catch(e){const codigo=codigoSeguro(e);recibo.diagnosticoLocal.ultimoErro={fase,codigo,em:new Date().toISOString()};registrar('ACAO_REJEITADA',{fase,codigo});avisar('Etapa '+fase+': '+codigo+'. A prova não foi aprovada. O recibo de sessão não substitui o recibo de prova.');}finally{ocupado=false;$('coorte').disabled=false;atualizar();}}
@@ -82,7 +84,7 @@ async function validarSessao(){fase='SESSAO_MASTER';const u=auth.currentUser;if(
  usuarioValidado=u;recibo.masterAutorizado=true;recibo.sessaoVerificadaEm=new Date().toISOString();registrar('SESSAO_MASTER_VALIDADA');avisar('Sessão Master validada. Para preparar o executor, salve o recibo de SESSÃO. Para provar contexto, carregue a coorte atual e use o botão próprio durante a janela autorizada.');}
 $('login').onsubmit=e=>{e.preventDefault();const email=$('email').value,senha=$('senha').value;$('senha').value='';acao(async()=>{fase='FIREBASE_AUTH';await authMod.signInWithEmailAndPassword(auth,email,senha);await validarSessao();});};
 $('sessao').onclick=()=>acao(validarSessao);
-authMod.onAuthStateChanged(auth,()=>{usuarioValidado=null;canal=null;coorte=null;arquivoCoorteValidado=null;$('coorte').value='';solicitada=false;recibo.masterAutorizado=false;delete recibo.sessaoVerificadaEm;invalidarProva();registrar('SESSAO_ALTERADA');atualizar();});
+authMod.onAuthStateChanged(auth,()=>{usuarioValidado=null;canal=null;coorte=null;arquivoCoorteValidado=null;$('coorte').value='';solicitada=false;recibo.masterAutorizado=false;delete recibo.sessaoVerificadaEm;recibo.gate=[];invalidarProva();registrar('SESSAO_ALTERADA');atualizar();});
 $('coorte').onchange=()=>{
  const campo=$('coorte');
  if(ocupado){campo.value='';atualizar();return;}
@@ -115,11 +117,32 @@ $('conectar').onclick=()=>acao(async()=>{
  if(!recibo.chamadas.slice(inicioChamadas).some(c=>c.url===contextoURL&&c.status===200))throw Error('CONTEXTO_GATEWAY_200_AUSENTE');
  recibo.provaRealAprovada=true;recibo.coorteId=coorte.id;recibo.provaEm=new Date().toISOString();registrar('CONTEXTO_MASTER_HTTP_200_APROVADO');avisar('Contexto Master aprovado pelo Gateway com HTTP 200. Recibo de PROVA pronto: clique Salvar recibo de PROVA aprovada. Pausa/reabertura não foram comprovadas.');
 });
-async function gate(abrir){fase='COMANDO_GATE';if(!canal||!recibo.provaRealAprovada||auth.currentUser!==usuarioValidado)throw Error('PROVA_REAL_OBRIGATORIA');const c=JSON.parse($('comando').value);if(c.novosAceitesPermitidos!==abrir)throw Error('ACAO_DIVERGENTE');const r=abrir?await canal.reabrir(c,foto,{escoamentoConfirmado:$('escoado').checked}):await canal.pausar(c,foto);recibo.gate.push({comandoId:c.comandoId,revisaoEsperada:c.revisaoEsperada,abertura:abrir,resultado:r,em:new Date().toISOString()});avisar('Comando confirmado. Conferir fotografia/auditoria servidor; não reenviar automaticamente.');}
+function reciboGateAtual(abrir){
+ if(!recibo.masterAutorizado||!usuarioValidado||auth.currentUser!==usuarioValidado||!coorteAtual(coorte))return null;
+ return recibo.gate.findLast(g=>g.abertura===abrir&&g.coorteId===coorte.id&&atual(g.em,5))??null;
+}
+async function gate(abrir){
+ fase='COMANDO_GATE';
+ if(!canal||!recibo.provaRealAprovada||!usuarioValidado||auth.currentUser!==usuarioValidado||!coorteAtual(coorte)||recibo.coorteId!==coorte.id)throw Error('PROVA_REAL_OBRIGATORIA');
+ const c=JSON.parse($('comando').value),fotografia=foto,coorteId=coorte.id,u=usuarioValidado;
+ if(c.novosAceitesPermitidos!==abrir)throw Error('ACAO_DIVERGENTE');
+ const r=abrir?await canal.reabrir(c,fotografia,{escoamentoConfirmado:$('escoado').checked}):await canal.pausar(c,fotografia);
+ if(auth.currentUser!==u||usuarioValidado!==u||coorte?.id!==coorteId||r?.ok!==true||r.revisao!==c.revisaoEsperada+1||r.novosAceitesPermitidos!==abrir)throw Error('RESULTADO_GATE_DIVERGENTE');
+ recibo.gate.push({janelaId:fotografia.janelaId,fotografiaEm:fotografia.readTime,coorteId,comandoId:c.comandoId,revisaoEsperada:c.revisaoEsperada,abertura:abrir,resultado:{ok:true,revisao:r.revisao,novosAceitesPermitidos:r.novosAceitesPermitidos},em:new Date().toISOString()});
+ avisar('Comando confirmado. Salve o recibo específico do gate e confira a auditoria no executor. Não reenvie automaticamente.');
+}
+function salvarGate(abrir){
+ fase='SALVAR_GATE';
+ const g=reciboGateAtual(abrir);if(!g)throw Error('RECIBO_GATE_NAO_ATUAL');
+ const tipo=abrir?'gate-reabertura':'gate-pausa';
+ baixar({versao:1,tipo,projeto:recibo.projeto,origem,masterAutorizado:true,janelaId:g.janelaId,coorteId:g.coorteId,geradoEm:new Date().toISOString(),gate:[g]},'recibo-master-'+tipo+'-v004.json');
+}
 $('pausar').onclick=()=>acao(()=>gate(false));$('reabrir').onclick=()=>acao(()=>gate(true));
-function baixar(obj){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}));a.href=u;a.download='recibo-master-v004.json';a.click();URL.revokeObjectURL(u);}
+function baixar(obj,nome='recibo-master-v004.json'){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}));a.href=u;a.download=nome;a.click();URL.revokeObjectURL(u);}
 $('baixar').onclick=()=>acao(async()=>{fase='SALVAR_SESSAO';if(!recibo.masterAutorizado||auth.currentUser!==usuarioValidado||!atual(recibo.sessaoVerificadaEm,5))throw Error('SESSAO_MASTER_ATUAL_OBRIGATORIA');registrar('RECIBO_SESSAO_SALVO');baixar({...recibo,tipo:'sessao-master',geradoEm:new Date().toISOString(),provaRealAprovada:false,coorteId:undefined,provaEm:undefined,chamadas:[],gate:[]});avisar('Recibo de SESSÃO salvo para preparar o executor. Esse arquivo não é uma prova aprovada.');});
-$('baixar-prova').onclick=()=>acao(async()=>{fase='SALVAR_PROVA';const motivo=motivoProva();if(motivo)throw Error(motivo);registrar('RECIBO_PROVA_PRONTO_PARA_DOWNLOAD');baixar({...recibo,tipo:'prova-contexto',geradoEm:new Date().toISOString()});avisar('Download do recibo de PROVA solicitado. Deixe em Downloads; o executor validará conteúdo, coorte, horários e Gateway.');});
+$('baixar-prova').onclick=()=>acao(async()=>{fase='SALVAR_PROVA';const motivo=motivoProva();if(motivo)throw Error(motivo);registrar('RECIBO_PROVA_PRONTO_PARA_DOWNLOAD');baixar({...recibo,tipo:'prova-contexto',geradoEm:new Date().toISOString(),gate:[]});avisar('Download do recibo de PROVA solicitado. Deixe em Downloads; o executor validará conteúdo, coorte, horários e Gateway.');});
+$('baixar-pausa').onclick=()=>acao(()=>salvarGate(false));
+$('baixar-reabertura').onclick=()=>acao(()=>salvarGate(true));
 atualizar();
 
 </script></html>
