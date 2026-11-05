@@ -14,6 +14,7 @@
 <label>Recibo atual da coorte para a prova <input id="coorte" type="file" accept="application/json" aria-describedby="ajuda-coorte"></label>
 <p id="ajuda-coorte">Selecione o <code>recibo-coorte-atual.json</code> pelo caminho exibido pelo executor desta execução. Abra o link da execução exibido no terminal e confira o ID na indicação “Coorte validada na página” antes de solicitar o contexto.</p>
 <p id="coorte-selecionada" role="status"></p>
+<p id="coorte-vinculo" role="status">LINK DO NAVEGADOR deve conter o ID mostrado no terminal. CAMINHO DO FICHEIRO deve ser usado na janela de seleção.</p>
 <button id="conectar">Provar contexto pelo Gateway</button>
 <details><summary>Controles de pausa e reabertura da janela de corte</summary>
 <fieldset><legend>Comandos da janela — não são executados automaticamente</legend>
@@ -53,7 +54,21 @@ function codigoSeguro(e){
  return 'FALHA_LOCAL_NAO_CLASSIFICADA';
 }
 function atual(t,min){const d=typeof t==='string'?Date.parse(t):NaN;return Number.isFinite(d)&&Date.now()-d<=min*60000&&d<=Date.now()+30000;}
-const idCoorteEsperada=new URL(location.href).searchParams.get('coorte');
+const parametrosCoorte=new URL(location.href).searchParams.getAll('coorte');
+const idCoorteEsperada=parametrosCoorte[0]??null;
+function validarVinculoCoorte(nova){
+ const valido=v=>typeof v==='string'&&/^coorte-[a-f0-9]{32}$/.test(v);
+ const estado=!parametrosCoorte.length?'COORTE_LINK_SEM_ID'
+  :parametrosCoorte.length!==1?'COORTE_LINK_ID_DUPLICADO'
+  :!valido(idCoorteEsperada)?'COORTE_LINK_ID_INVALIDO'
+  :!valido(nova.id)?'COORTE_ARQUIVO_ID_INVALIDO'
+  :nova.id!==idCoorteEsperada?'COORTE_LINK_E_ARQUIVO_DIFERENTES':null;
+ const vinculo={esperada:valido(idCoorteEsperada)?idCoorteEsperada:null,recebida:valido(nova.id)?nova.id:null,parametros:parametrosCoorte.length};
+ recibo.diagnosticoLocal.vinculoCoorte=vinculo;
+ registrar('VINCULO_COORTE',{codigo:estado??'COORTE_VINCULO_OK'});
+ $('coorte-vinculo').textContent='ID no link: '+(vinculo.esperada??'ausente ou inválido')+' · ID no arquivo: '+(vinculo.recebida??'ausente ou inválido');
+ if(estado)throw Error(estado);
+}
 function coorteAtual(c){return c?.comprovada===true&&c.projeto==='interliga-mobilidade'&&typeof c.id==='string'&&c.id.length>0&&atual(c.validadoEm,15);}
 function motivoProva(){
  if(!recibo.masterAutorizado||auth.currentUser!==usuarioValidado||!atual(recibo.sessaoVerificadaEm,5))return 'SESSAO_MASTER_ATUAL_OBRIGATORIA';
@@ -78,7 +93,7 @@ function atualizar(){
  $('baixar-pausa').disabled=!reciboGateAtual(false);
  $('baixar-reabertura').disabled=!reciboGateAtual(true);
 }
-function invalidarProva(){recibo.provaRealAprovada=false;delete recibo.coorteId;delete recibo.provaEm;}
+function invalidarProva(){recibo.provaRealAprovada=false;delete recibo.coorteId;delete recibo.provaEm;delete recibo.provaVinculo;}
 async function acao(fn){if(ocupado){avisar('Uma ação está em andamento; aguarde o resultado.');return;}ocupado=true;$('coorte').disabled=true;try{await fn();}catch(e){const codigo=codigoSeguro(e);recibo.diagnosticoLocal.ultimoErro={fase,codigo,em:new Date().toISOString()};registrar('ACAO_REJEITADA',{fase,codigo});avisar('Etapa '+fase+': '+codigo+'. A prova não foi aprovada. O recibo de sessão não substitui o recibo de prova.');}finally{ocupado=false;$('coorte').disabled=false;atualizar();}}
 async function validarSessao(){fase='SESSAO_MASTER';const u=auth.currentUser;if(!u||u.isAnonymous)throw Error('SESSAO_REAL_AUSENTE');
  const s=await getDocFromServer(doc(db,'adminsMaster',u.uid));if(auth.currentUser!==u||!s.exists()||s.data().ativo!==true||s.data().perfil!=='adminMaster')throw Error('MASTER_ATIVO_NAO_COMPROVADO');
@@ -96,7 +111,7 @@ $('coorte').onchange=()=>{
    const nova=JSON.parse(await file.text());
    if(campo.files[0]!==file)throw Error('ARQUIVO_COORTE_SELECAO_ALTERADA');
    if(!coorteAtual(nova))throw Error('RECIBO_ATUAL_COORTE_OBRIGATORIO');
-   if(!/^coorte-[a-f0-9]{32}$/.test(idCoorteEsperada||'')||nova.id!==idCoorteEsperada)throw Error('COORTE_DIVERGENTE_USE_LINK_E_ARQUIVO_DO_TERMINAL');
+   validarVinculoCoorte(nova);
    if(canal&&coorte?.id!==nova.id)throw Error('COORTE_ALTERADA_RECARREGUE_PAGINA');
    coorte=nova;arquivoCoorteValidado=file.name;invalidarProva();registrar('COORTE_ATUAL_CARREGADA');
    avisar('Coorte atual carregada. Durante a janela indicada pelo executor, clique Provar contexto pelo Gateway. A leitura do arquivo não comprova autenticidade ou sucesso da prova.');
@@ -109,7 +124,9 @@ async function fetchDiagnostico(url,op){
  const u=new URL(url);const endpoint=u.origin+u.pathname;
  fase=u.pathname==='/app-check/desafio'?'APPCHECK_DESAFIO':u.pathname==='/app-check/troca'?'APPCHECK_TROCA':'GATEWAY_CONTEXTO';
  registrar('REQUISICAO_INICIADA',{fase});
- try{const r=await fetch(url,op);recibo.chamadas.push({url:endpoint,status:r.status,em:new Date().toISOString()});registrar('RESPOSTA_HTTP',{fase,http:r.status});return r;}catch(e){registrar('REQUISICAO_SEM_RESPOSTA_HTTP',{fase,codigo:codigoSeguro(e)});throw e;}
+ let correlacaoId;
+ if(endpoint===contextoURL&&op?.method==='POST'){correlacaoId='pv-'+crypto.randomUUID().replaceAll('-','');u.searchParams.set('provaId',correlacaoId);url=u.href;}
+ try{const r=await fetch(url,op);if(correlacaoId&&r.status===200){const d=await r.clone().json(),v=d?.comprovacaoContexto;if(v?.versao!==1||v.correlacaoId!==correlacaoId||!/^[-a-f0-9]{36}$/.test(v.eventoId||'')||!Number.isFinite(Date.parse(v.aprovadoEm)))throw Error('CORRELACAO_SERVIDOR_NAO_COMPROVADA');recibo.provaVinculo={...v};}recibo.chamadas.push({url:endpoint,status:r.status,em:new Date().toISOString()});registrar('RESPOSTA_HTTP',{fase,http:r.status});return r;}catch(e){registrar('REQUISICAO_SEM_RESPOSTA_HTTP',{fase,codigo:codigoSeguro(e)});throw e;}
 }
 $('conectar').onclick=()=>acao(async()=>{
  invalidarProva();solicitada=true;fase='SOLICITAR_CONTEXTO';registrar('PROVA_CONTEXTO_SOLICITADA');avisar('Prova de contexto solicitada. Aguarde a resposta; isso ainda não comprova chegada ao Gateway.');atualizar();
@@ -117,7 +134,9 @@ $('conectar').onclick=()=>acao(async()=>{
  const inicioChamadas=recibo.chamadas.length;fase='PREPARAR_APPCHECK_GATEWAY';if(!canal)canal=conectarSessaoMasterProdutiva({app,auth,appCheckMod,api:globalThis.InterligaAdministracaoV004,resolverProva:resolver,reciboCoorte:coorte,habilitado:true,fetchFn:fetchDiagnostico});
  const r=await canal.contexto();fase='VALIDAR_RESPOSTA_CONTEXTO';if(r.papel!=='master'||auth.currentUser!==usuarioValidado||coorte!==coorteDaTentativa)throw Error('MASTER_OU_COORTE_NAO_CONFIRMADOS');
  if(!recibo.chamadas.slice(inicioChamadas).some(c=>c.url===contextoURL&&c.status===200))throw Error('CONTEXTO_GATEWAY_200_AUSENTE');
- recibo.provaRealAprovada=true;recibo.coorteId=coorte.id;recibo.provaEm=new Date().toISOString();registrar('CONTEXTO_MASTER_HTTP_200_APROVADO');avisar('Contexto Master aprovado pelo Gateway com HTTP 200. Recibo de PROVA pronto: clique Salvar recibo de PROVA aprovada. Pausa/reabertura não foram comprovadas.');
+ if(!recibo.provaVinculo)throw Error('CORRELACAO_SERVIDOR_NAO_COMPROVADA');
+ const provaClienteEm=new Date().toISOString();if(Math.abs(Date.parse(provaClienteEm)-Date.parse(recibo.provaVinculo.aprovadoEm))>=12000)throw Error('RELOGIOS_APROVACAO_DIVERGENTES');
+ recibo.provaRealAprovada=true;recibo.coorteId=coorte.id;recibo.provaEm=provaClienteEm;registrar('CONTEXTO_MASTER_HTTP_200_APROVADO');avisar('Contexto Master aprovado pelo Gateway com HTTP 200. Recibo de PROVA pronto: clique Salvar recibo de PROVA aprovada. Pausa/reabertura não foram comprovadas.');
 });
 function reciboGateAtual(abrir){
  if(!recibo.masterAutorizado||!usuarioValidado||auth.currentUser!==usuarioValidado||!coorteAtual(coorte))return null;
